@@ -41,7 +41,7 @@ switch(styID)
         colours     = {'blue','orange'};
         opt.general.markertype  = 'o';
         opt.general.markersize  = 6;
-        opt.display.ax          = 'square';            
+        opt.display.ratio       = 'square';            
     case 'groupx3'
         colours     = {'blue','orange','yellow'};
         opt.general.markertype  = 'o';

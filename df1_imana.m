@@ -2640,7 +2640,124 @@ switch(what)
         end;
         
         % saving results
-%         save_figure(gcf,fullfile(figureDir,sprintf('%s.pdf',what)),'style','brain_3row');  
+%         save_figure(gcf,fullfile(figureDir,sprintf('%s.pdf',what)),'style','brain_3row');
+    case 'FIG_group_FingerPatternsThumb'         % Finger patterns for the two groups (healthy vs dystonic)
+        atlas       = 2;
+        hand        = 2;    % right hand
+        hemi        = 1;    % left hemisphere
+        reg         = 1;    % S1
+        metric      = 3;    % max
+        condition   = 2;
+        sn1         = 6;
+        sn2         = 12;
+        vararginoptions(varargin,{'hemi','condition','hand','sn1','sn2'});
+        
+        cData   = zeros(163842,5,length(subj_name));
+        handIdx = 5*(hand-1)+[1:5];
+        x = zeros(5,length(subj_name));
+        y = zeros(5,length(subj_name));        
+        xmax = zeros(5,length(subj_name));
+        ymax = zeros(5,length(subj_name));        
+        
+        % 1. Getting activation patterns for all subjects/fingers
+        D = load(fullfile(regDir,'spatial_CoG.mat'));
+        for sn=1:length(subj_name)
+            fprintf('SN %d, REG %d, HEM %d\n',sn,reg,hemi);
+            
+            dataFile    = fullfile(caretDir,[atlasA{atlas} subj_name{sn}],hemName{hemi},[subj_name{sn} '_finger.metric']);
+            data        = caret_load(dataFile);
+            data        = data.data(:,handIdx);
+
+            % storing data
+            cData(:,:,sn) = data;
+            
+            % get CoG measurements
+            Di = getrow(D,strcmp(D.subjname,subj_name{sn}) & D.metric==metric & D.region==reg & D.hand==hand & D.condition==condition & D.regSide==hemi);
+            x(:,sn) = Di.x;
+            y(:,sn) = Di.y;
+            
+            Di = getrow(D,strcmp(D.subjname,subj_name{sn}) & D.metric==1 & D.region==reg & D.hand==hand & D.condition==condition & D.regSide==hemi);
+            xmax(:,sn) = Di.x;
+            ymax(:,sn) = Di.y;
+        end;
+        
+        % 2. Getting means for finger patterns across groups
+%         sn1 = 1; sn2 = 2;
+        fp_cont.data    = cData(:,:,sn1);
+        fp_dyst.data    = cData(:,:,sn2);
+                
+        % 3. Getting group surface
+        groupDir    = [caretDir filesep atlasname{atlas}  filesep hemName{hemi} ];
+        border      = fullfile(caretDir,atlasname{atlas},hemName{hemi},['CS.border']);
+        paint       = fullfile(caretDir,atlasname{atlas},hemName{hemi},['ROI.paint']);
+        shape       = fullfile(caretDir,atlasname{atlas},hemName{hemi},[hem{hemi} '.surface_shape']);
+        cd(groupDir);
+
+        switch(hemi)
+            case 2
+                coord='rh.FLAT.coord';
+                topo='rh.CUT.topo';
+                xlims=[-10 5];
+                ylims=[-5 10];
+            case 1
+                coord='lh.FLAT.coord';
+                topo='lh.CUT.topo';
+                xlims=[-5 10];
+                ylims=[-5 10];
+        end;
+        B       = caret_load(border);
+        P       = caret_load(paint);
+        sshape  = caret_load(shape);
+
+%         % TO DELETE!!!!
+%         idxROI  = P.data==reg;
+%         fp_cont.data(~idxROI,:)=nan;        
+        
+        figure;        
+        subplot(3,5,11);
+        colormap(gray);
+        M       = caret_plotflatmap('col',2,'data',sshape,'col',1,'border',B.Border,...
+                                   'topo',topo,'coord',coord,'xlims',xlims,'ylims',ylims);
+        axis square;
+        set(gca,'XTickLabel',[],'YTickLabel',[]);
+        
+        % 4. Plotting finger patterns
+%         for i=1:length(handIdx)            
+        for i=1
+            subplot(121);
+            colormap('default');            
+            [M,d]=caret_plotflatmap('M',M,'col',i,'data',fp_cont,...
+                'border',B.Border,'topo',topo,'coord',coord);
+            maxT(i)=max(d(:));
+            axis square;
+            set(gca,'XTickLabel',[],'YTickLabel',[]);
+            hold on;
+            plot(x(i,sn1),y(i,sn1),'+r','MarkerSize',15);
+            plot(xmax(i,sn1),ymax(i,sn1),'or','MarkerSize',15);
+            hold off;
+            
+            subplot(122);
+            [M,d]=caret_plotflatmap('M',M,'col',i,'data',fp_dyst,...
+                'border',B.Border,'topo',topo,'coord',coord);
+            maxT(i+5)=max(d(:));
+            axis square;
+            set(gca,'XTickLabel',[],'YTickLabel',[]);
+            hold on;
+            plot(x(i,sn2),y(i,sn2),'+r','MarkerSize',15);
+            plot(xmax(i,sn2),ymax(i,sn2),'or','MarkerSize',15);
+            hold off;
+            
+        end;
+        
+        % Re-scaling
+%         mm=max(maxT);
+%         for i=1:10
+%             subplot(3,5,i);
+%             caxis([-mm/2 mm]);
+%         end;
+        
+        % saving results
+        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x2');
     case 'FIG_group_FingerPatternsSomatotopy'         % Finger patterns for the two groups (healthy vs dystonic)
         atlas       = 2;
         hand        = 2;    % right hand
@@ -2975,6 +3092,8 @@ switch(what)
             D = load(fullfile(regDir,'spatial_distances.mat'));
             d = getrow(D,D.region==reg & D.metric==metric & D.condition==cond & D.group==group);
 
+            d = getrow(d,d.hand==2);
+            
             % 2. Get correlation between subjects
             for h=unique(d.hand)'
                 i = 1;
@@ -2982,13 +3101,13 @@ switch(what)
                 for s=unique(d.sn)'
                     d1      = d.dist(d.sn==s & d.hand==h,:);
                     d2      = d.dist(d.sn~=s & d.hand==h,:);
-                    r(i)    = nanmean(corr(d1',d2'));
+                    r(i)    = nanmean(corr(d1',d2'))';
                     i       = i+1;
                 end;
 
                 m=nanmean(fisherz(r)); 
                 SE=stderr(fisherz(r)); 
-                fprintf('r = %2.3f (%2.3f - %2.3f)\n',fisherinv(m),fisherinv(m-1.96*SE),fisherinv(m+1.96*SE));
+                fprintf('%1.2f (%1.2f - %1.2f)\n',fisherinv(m),fisherinv(m-1.96*SE),fisherinv(m+1.96*SE));
             end;
             varargout = {r};
     case 'TUNING_REL_betweenSubj'  % corr distance measures between subjects
@@ -3023,46 +3142,7 @@ switch(what)
     case 'FIG_groupRelPassive'             % reliability differences between spatial and tuning metrics
             metric = 3;    
             reg = [1 2];
-            grp = [1 2];
-            
-            S = [];
-            for r=1:length(reg)
-                for g=1:length(grp)
-                    r1 = df1_imana('SPAT_REL_betweenSubj','group',g,'reg',r,'metric',metric,'cond',1);
-                    r2 = df1_imana('TUNING_REL_betweenSubj','group',g,'reg',r,'stimType',1);
-                    
-                    v           = ones(length(r1),1);
-                    Si.sn       = [1:length(r1)]';
-                    Si.reg      = r*v;
-                    Si.group    = g*v;
-                    Si.type     = 1*v;
-                    Si.r        = r1;
-                    S           = addstruct(S,Si);
-                    
-                    Si.type     = 2*v;
-                    Si.r        = r2;
-                    S           = addstruct(S,Si);   
-                    clear Si
-                end;
-            end;
-            
-            s = style.custom({'blue','black'});
-        
-            plt.subplot(221);
-            plt.bar(S.type,S.r,'subset',S.group==1 & S.reg==1,'split',S.type,'leg','none','style',s);
-            plt.subplot(222);
-            plt.bar([S.type],S.r,'subset',S.group==1 & S.reg==2,'split',S.type,'leg','none','style',s);
-            plt.set(gcf,'xticklabel',{'spatial','RDM','spatial','RDM'},...
-                        'ytick',0:0.2:1,'match','ylim');
-                    
-            plt.labels([],'Pearsons r','S1','D',221);                    
-            plt.labels([],'Pearsons r','M1',[],222);                    
-        
-            plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'style','1x2'); 
-    case 'FIG_groupRelActive'             % reliability differences between spatial and tuning metrics
-            metric = 3;    
-            reg = [1 2];
-            grp = [1 2];
+            grp = [1];
             
             S = [];
             for r=1:length(reg)
@@ -3097,7 +3177,46 @@ switch(what)
             plt.labels([],'Pearsons r','S1','D',221);                    
             plt.labels([],'Pearsons r','M1',[],222);                    
         
-            plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'style','1x2');             
+            plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x2'); 
+    case 'FIG_groupRelActive'             % reliability differences between spatial and tuning metrics
+            metric = 3;    
+            reg = [1 2];
+            grp = [1];
+            
+            S = [];
+            for r=1:length(reg)
+                for g=1:length(grp)
+                    r1 = df1_imana('SPAT_REL_betweenSubj','group',g,'reg',r,'metric',metric,'cond',1);
+                    r2 = df1_imana('TUNING_REL_betweenSubj','group',g,'reg',r,'stimType',0);
+                    
+                    v           = ones(length(r1),1);
+                    Si.sn       = [1:length(r1)]';
+                    Si.reg      = r*v;
+                    Si.group    = g*v;
+                    Si.type     = 1*v;
+                    Si.r        = r1;
+                    S           = addstruct(S,Si);
+                    
+                    Si.type     = 2*v;
+                    Si.r        = r2;
+                    S           = addstruct(S,Si);   
+                    clear Si
+                end;
+            end;
+            
+            s = style.custom({'blue','black'});
+        
+            plt.subplot(221);
+            plt.bar(S.type,S.r,'subset',S.group==1 & S.reg==1,'split',S.type,'leg','none','style',s);
+            plt.subplot(222);
+            plt.bar([S.type],S.r,'subset',S.group==1 & S.reg==2,'split',S.type,'leg','none','style',s);
+            plt.set(gcf,'xticklabel',{'spatial','RDM','spatial','RDM'},...
+                        'ytick',0:0.2:1,'match','ylim');
+                    
+            plt.labels([],'Pearsons r','S1','D',221);                    
+            plt.labels([],'Pearsons r','M1',[],222);                    
+        
+            plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x2');             
     case 'REL_betweenSubj_ttest'
             for i = 1:5 % motor condition (combining both left and right hemispheres)
 
@@ -3257,6 +3376,8 @@ switch(what)
 %            
     case 'Fig_repStructurePassive'          % representational structure across groups
         D = load(fullfile(regDir,'reg_distance_raw.mat'));
+        D.normdist = bsxfun(@rdivide,D.dist,sqrt(mean(D.dist.^2,2)));
+        
 %         D = rmfield(D,'subj');
         D1 = getrow(D,D.stimtype==1 & D.hand~=D.regSide & D.regType==1);
         D2 = getrow(D,D.stimtype==1 & D.hand~=D.regSide & D.regType==2);
@@ -3264,40 +3385,47 @@ switch(what)
         style.use('group_smallmarker');
         
         plt.subplot(1,3,2);
-        plt.trace([],D1.dist,'split',D1.group,'leg','none');
+        plt.trace([],D1.normdist,'split',D1.group,'leg','none');
         plt.subplot(1,3,3);
-        plt.trace([],D2.dist,'split',D2.group,'leg','none');
+        plt.trace([],D2.normdist,'split',D2.group,'leg','none');
         
-        plt.set(gcf,'match','ylim','xtick',1:10,'ytick',0:0.5:1);
-        plt.labels([],'dissimilarity (a.u.)','S1 (RH)','B',132);
-        plt.labels([],'dissimilarity (a.u.)','M1 (RH)','C',133);
-        
+        plt.set(gcf,'xtick',1:10,'ytick',0:0.5:1.5,'ylim',[-0.1 2],'yprecision','%1.1f');
+        plt.labels([],{'dissimilarity','(normalized)'},'S1 (RH)','B',132);
+        plt.labels([],[],'M1 (RH)','C',133);
+        plt.set(gcf,'ax','square','yprecision','%1.1f');
+        anot.hide_axis('y');
         plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x2'); 
     case 'Fig_repStructureActive'          % representational structure across groups
         D = load(fullfile(regDir,'reg_distance_raw.mat'));
+        D.normdist = bsxfun(@rdivide,D.dist,sqrt(mean(D.dist.^2,2)));
+        
 %         D = rmfield(D,'subj');
         D1 = getrow(D,D.stimtype==0 & D.hand~=D.regSide & D.regType==1);
         D2 = getrow(D,D.stimtype==0 & D.hand~=D.regSide & D.regType==2);
         
         style.use('group_smallmarker');
         
-        plt.subplot(221);
-        plt.trace([],D1.dist,'split',D1.group,'subset',D1.hand==0,'leg','none');
-        plt.subplot(222);
-        plt.trace([],D2.dist,'split',D2.group,'subset',D2.hand==0,'leg','none');
-        
-        plt.subplot(223);
-        plt.trace([],D1.dist,'split',D1.group,'subset',D1.hand==1,'leg','none');
-        plt.subplot(224);
-        plt.trace([],D2.dist,'split',D2.group,'subset',D2.hand==1,'leg','none');
+        plt.subplot(141);
+        plt.trace([],D1.normdist,'split',D1.group,'subset',D1.hand==0,'leg','off');
 
-        plt.set(gcf,'match','ylim','xtick',1:10,'ytick',0:0.5:1);
-        plt.labels([],'dissimilarity (a.u.)','S1 (LH)','D',221);
-        plt.labels([],[],'M1 (RH)','E',222);
-        plt.labels([],'dissimilarity (a.u.)',[],[],223);
+        plt.subplot(142);
+        plt.trace([],D2.normdist,'split',D2.group,'subset',D2.hand==0,'leg','off');
+        anot.hide_axis('y');
+        plt.subplot(143);
+        plt.trace([],D1.normdist,'split',D1.group,'subset',D1.hand==1,'leg','off');
+        anot.hide_axis('y');
+        plt.subplot(144);
+        plt.trace([],D2.normdist,'split',D2.group,'subset',D2.hand==1,'leg','off');
+        anot.hide_axis('y');
         
-        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'style','1x2');    
-    case 'FIG_somatotopicDistances'
+        plt.set(gcf,'xtick',1:10,'ytick',0:0.5:1.5,'ylim',[-0.1 2],'yprecision','%1.1f');
+        plt.labels([],{'dissimilarity','normalized'},'S1 (LH)','A',141);
+        plt.labels([],[],'M1 (LH)','B',142);
+        plt.labels([],[],'S1 (RH)','C',143);
+        plt.labels([],[],'M1 (RH)','D',144);
+        
+        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x2');    
+    case 'FIG_somatotopicDistancesPassive'
         D = load(fullfile(regDir,'spatial_distances.mat'));
         D = getrow(D,ismember(D.region,[1 2]) & D.metric==3 & D.condition==2);
         
@@ -3312,7 +3440,31 @@ switch(what)
         plt.set(gcf,'match','ylim','xtick',1:10);
         plt.labels([],[],'CoG distances','B');            
 
-        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'style','0.75x2');    
+        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'0.75x2');   
+        
+    case 'FIG_somatotopicDistancesActive'
+        D = load(fullfile(regDir,'spatial_distances.mat'));
+        D = getrow(D,ismember(D.region,[1 2]) & D.metric==3 & D.condition==1);
+        
+        style.use('group_smallmarker');
+        
+        plt.subplot(141);
+        plt.trace(1:10,D.dist,'split',D.group,'subset',D.region==1 & D.hand==1,'leg','off');
+        plt.labels([],'distance (cm)','CoG distances','A');    
+        
+        plt.subplot(142);
+        plt.trace(1:10,D.dist,'split',D.group,'subset',D.region==2 & D.hand==1,'leg','off');
+        
+        plt.subplot(143);
+        plt.trace(1:10,D.dist,'split',D.group,'subset',D.region==1 & D.hand==2,'leg','off');
+        
+        plt.subplot(144);
+        plt.trace(1:10,D.dist,'split',D.group,'subset',D.region==2 & D.hand==2,'leg','off');        
+        
+
+        plt.set(gcf,'match','ylim','xtick',1:10);
+
+        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x2');           
         
     case 'FIG_meanActivation'
         D = load(fullfile(regDir,'mean_betas.mat'));
