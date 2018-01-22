@@ -659,7 +659,8 @@ switch(what)
                 
             end;
         end;
-    case 'contrast'%________________STEP 11
+
+    case 'contrast_main'%________________STEP 11
         %df1_imana('contrast',1, 1)
         sn=varargin{1};
         glmType=varargin{2};
@@ -727,6 +728,101 @@ switch(what)
             SPM=spm_contrasts(SPM,[1:length(SPM.xCon)]);
             save SPM SPM;
         end
+    case 'copy_main_contrast' 
+        glmType = 1;
+        for sn=unique(subj_name)
+            disp(sn);
+            cd(fullfile(baseDir,glmName{glmType},sn{1}));
+            mkdir('contrast_main');
+            
+            d1=dir('spm*');
+            for i=1:length(d1)
+                copyfile(d1(i).name,fullfile(cd,'contrast_main',d1(i).name));
+            end;
+            
+            d2=dir('ess_*');
+            for i=1:length(d2)
+                copyfile(d2(i).name,fullfile(cd,'contrast_main',d2(i).name));
+            end;
+            
+            d3=dir('con_*');
+            for i=1:length(d3)
+                copyfile(d3(i).name,fullfile(cd,'contrast_main',d3(i).name));
+            end;
+        end;               
+    case 'contrast_splithalf'%________________STEP 11
+        sn      = varargin{1};
+        glmType = varargin{2};
+        
+        for subj=sn
+            cd(fullfile(baseDir,glmName{glmType}, subj_name{subj}));
+            disp(subj_name{subj});
+            load SPM;
+            T=load('SPM_info.mat');
+            SPM=rmfield(SPM,'xCon');
+            
+            % ODD RUN: t-contrast for each finger / hand against rest
+            idx = 1;
+            for h=[0 1] % hand 0=> left 1=> right
+                for s= [0 1] % stimType  0=> of 1=> passive mov
+                    if ~(h==0 && s==1)
+                        for d=1:5
+                            con=zeros(1,size(SPM.xX.X,2));
+                            con(1,T.digit==d & T.hand==h & T.stimType==s)=1;
+                            
+                            odd = con(1:length(T.run))' .* mod(T.run,2);
+                            con(1:length(T.run)) = odd;
+                            
+                            con=con/sum(con);
+                            conName= sprintf('ODD_T_hand_%i_stimType_%i_digit_%i', h,s,d);
+                            SPM.xCon(idx)=spm_FcUtil('Set',conName, 'T', 'c',con',SPM.xX.xKXs);
+                            idx = idx + 1;
+                        end
+                    end
+                end
+            end;
+            
+            % EVEN RUN: t-contrast for each finger / hand against rest
+            for h=[0 1] % hand 0=> left 1=> right
+                for s= [0 1] % stimType  0=> of 1=> passive mov
+                    if ~(h==0 && s==1)
+                        for d=1:5
+                            con=zeros(1,size(SPM.xX.X,2));
+                            con(1,T.digit==d & T.hand==h & T.stimType==s)=1;
+                            
+                            even    = con(1:length(T.run))' .* (1-mod(T.run,2));
+                            con(1:length(T.run))    = even;
+                            
+                            con=con/sum(con);
+                            conName= sprintf('EVEN_T_hand_%i_stimType_%i_digit_%i', h,s,d);
+                            SPM.xCon(idx)=spm_FcUtil('Set',conName, 'T', 'c',con',SPM.xX.xKXs);
+                            idx = idx + 1;
+                        end
+                    end
+                end
+            end;
+            
+            %____do the constrasts
+            SPM=spm_contrasts(SPM,[1:length(SPM.xCon)]);
+            
+            % move the split-half contrasts to the relevant folder
+            mkdir('contrast_splithalf');
+            
+            d1=dir('spm*');
+            for i=1:length(d1)
+                movefile(d1(i).name,fullfile(cd,'contrast_splithalf',d1(i).name));
+            end;
+            
+            d2=dir('ess_*');
+            for i=1:length(d2)
+                movefile(d2(i).name,fullfile(cd,'contrast_splithalf',d2(i).name));
+            end;
+            
+            d3=dir('con_*');
+            for i=1:length(d3)
+                movefile(d3(i).name,fullfile(cd,'contrast_splithalf',d3(i).name));
+            end;
+        end;        
     case 'percent_signal'  %Calculate percent signal changes
         sn=varargin{1};
         glm=varargin{2};
@@ -1003,7 +1099,7 @@ switch(what)
         for s=sn
             defor= fullfile(anatomicalDir, subj_name{s}, [subj_name{s}, '_anatomical_seg_sn.mat']);
             for j=1:numel(images)
-                [dir,name,ext]=spm_fileparts(images{j});
+                [d,name,ext]=spm_fileparts(images{j});
                 sn_images{j}= fullfile(workDir,subj_name{s},images{j});
                 
                 out_images{j}= fullfile(groupData,[name, '_' subj_name{s}, outPrefix,  '.nii']);
@@ -1213,6 +1309,69 @@ switch(what)
                 caret_save(fullfile(caretSDir,[subj_name{s} '_finger.metric']),M);
             end;
         end;
+    case 'surf_map_finger_splithalf'
+        %df1_imana('surf_map_finger', 3:5)
+        % map volume images to metric file and save them in individual surface folder
+        sn=varargin{1};
+        hemisphere=[1:2];
+        atlas=2;
+        
+        vararginoptions({varargin{2:end}},{'atlas','hemisphere'});
+        glm=1;
+        
+        % map contrasts from odd experimental runs
+        fprintf('ODD\n---\n');
+        fileList={...
+            'spmT_0001.nii','spmT_0002.nii','spmT_0003.nii','spmT_0004.nii','spmT_0005.nii', ... %left hand motor    1:5
+            'spmT_0006.nii','spmT_0007.nii','spmT_0008.nii','spmT_0009.nii','spmT_0010.nii', ... %right hand motor   6:10
+            'spmT_0011.nii','spmT_0012.nii','spmT_0013.nii','spmT_0014.nii','spmT_0015.nii'};    %right hand sensory 11:15
+        for s=sn
+            disp(s);
+            for h=hemisphere
+                caretSDir = fullfile(caretDir,[atlasA{atlas},subj_name{s}],hemName{h});
+                specname=fullfile(caretSDir,[atlasA{atlas},subj_name{s} '.' hem{h}   '.spec']);
+                white=fullfile(caretSDir,[hem{h} '.WHITE.coord']);
+                pial=fullfile(caretSDir,[hem{h} '.PIAL.coord']);
+                topo=fullfile(caretSDir,[hem{h} '.CLOSED.topo']);
+                
+                C1=caret_load(white);
+                C2=caret_load(pial);
+                
+                for f=1:length(fileList)
+                    images{f}=fullfile(baseDir, glmName{glm},subj_name{s},'contrast_splithalf',fileList{f});
+                end;
+%                 M=caret_vol2surf_own(C1.data,C2.data,images,'ignore_zeros',1);
+                M=caret_vol2surf_own(C1.data,C2.data,images,'topo',topo,'exclude_thres',0.75,'ignore_zeros',1);
+                caret_save(fullfile(caretSDir,[subj_name{s} '_finger_odd.metric']),M);
+            end;
+        end;
+        
+        % map contrasts from even experimental runs
+        fprintf('EVEN\n----\n');
+        fileList={...
+            'spmT_0016.nii','spmT_0017.nii','spmT_0018.nii','spmT_0019.nii','spmT_0020.nii', ... %left hand motor    16:20
+            'spmT_0021.nii','spmT_0022.nii','spmT_0023.nii','spmT_0024.nii','spmT_0025.nii', ... %right hand motor   21:25
+            'spmT_0026.nii','spmT_0027.nii','spmT_0028.nii','spmT_0029.nii','spmT_0030.nii'};    %right hand sensory 26:30
+        for s=sn
+            disp(s);
+            for h=hemisphere
+                caretSDir = fullfile(caretDir,[atlasA{atlas},subj_name{s}],hemName{h});
+                specname=fullfile(caretSDir,[atlasA{atlas},subj_name{s} '.' hem{h}   '.spec']);
+                white=fullfile(caretSDir,[hem{h} '.WHITE.coord']);
+                pial=fullfile(caretSDir,[hem{h} '.PIAL.coord']);
+                topo=fullfile(caretSDir,[hem{h} '.CLOSED.topo']);
+                
+                C1=caret_load(white);
+                C2=caret_load(pial);
+                
+                for f=1:length(fileList)
+                    images{f}=fullfile(baseDir, glmName{glm},subj_name{s},'contrast_splithalf',fileList{f});
+                end;
+%                 M=caret_vol2surf_own(C1.data,C2.data,images,'ignore_zeros',1);
+                M=caret_vol2surf_own(C1.data,C2.data,images,'topo',topo,'exclude_thres',0.75,'ignore_zeros',1);
+                caret_save(fullfile(caretSDir,[subj_name{s} '_finger_even.metric']),M);
+            end;
+        end;        
     case 'surf_avrgsurfshape'%___DF______________Generates group metric____
         % Make group metric for surface shape into symmetric template (left template)
         %df1_imana('surf_avrgsurfshape')
@@ -1773,7 +1932,7 @@ switch(what)
         fcn='stats';
         prct=0;
         %         regions=[1 2 3 9 10    11 12 13 19 20];
-        regions=[1 2 3 4 5 11 12 13 14 15];
+        regions=[1 2 11 12];
         param={};
         Act = load(fullfile(regDir,'reg_data_8.mat'));
         sn=varargin{1};
@@ -1791,7 +1950,7 @@ switch(what)
             Raw={};
             for i=1:size(raw_data,1)
                 raw_data(i,:)=strrep(raw_data(i,:),'\','/');
-                [dir,name,ext,num]=spm_fileparts(raw_data(i,:));
+                [d,name,ext,num]=spm_fileparts(raw_data(i,:));
                 Raw{i}=fullfile(baseDir,'imaging_data',subj_name{s},[name ext num]);
             end;
             V=spm_vol(char(Raw));
@@ -1824,7 +1983,7 @@ switch(what)
                 
                 vec=[1;1;1];
                 S.SN=s*vec;
-                S.subj=subj_name(s);
+                S.subj=repmat(subj_name(s),length(vec),1);
                 S.region=r*vec;
                 S.hand=[0;1;1];
                 S.stimtype=[0;0;1];
@@ -1838,8 +1997,222 @@ switch(what)
         
         T.regSide=regSide(T.region)';
         T.regType=regType(T.region)';
-        save(fullfile(regDir,'reg_distance_motor.mat'),'-struct','T');
+        save(fullfile(regDir,'reg_distance_raw.mat'),'-struct','T');
         varargout={T};
+    case 'ROI_distanceSplitHalf'                  % Do extraction of time series to LDA-t values
+        selection='none';
+        fcn='stats';
+        prct=0;
+        %         regions=[1 2 3 9 10    11 12 13 19 20];
+        regions=[1 2 11 12];
+        param={};
+        Act = load(fullfile(regDir,'reg_data_8.mat'));
+        sn=varargin{1};
+        T=[];
+        
+        for s=sn
+            glmDirSubj=fullfile([glmDir], subj_name{s});
+            cd(fullfile(glmDirSubj));
+            load SPM;
+            D=load(fullfile(glmDir, subj_name{s},'SPM_info.mat'));
+            load(fullfile(regDir,[subj_name{s} '_regions.mat']));
+            
+            % Get and move the raw data files
+            raw_data=SPM.xY.P; % Get regions
+            Raw={};
+            for i=1:size(raw_data,1)
+                raw_data(i,:)=strrep(raw_data(i,:),'\','/');
+                [d,name,ext,num]=spm_fileparts(raw_data(i,:));
+                Raw{i}=fullfile(baseDir,'imaging_data',subj_name{s},[name ext num]);
+            end;
+            V=spm_vol(char(Raw));
+            
+            % Loop over the possile regions
+            for r=regions
+                indx=(Act.SN==s & Act.regNum==r);
+                
+                % Get the 200 most activated voxels in each region
+                % By magnitude of activation
+                M=mean(Act.psc(indx,1:2),2)./sqrt(Act.ResMs(indx,:));
+                [~,i]=sort(M,1,'descend');
+                R{r}.data=R{r}.data(i(1:min(200,length(i))),:);
+                
+                % Get the data and prewhiten
+                Y = region_getdata(V,R{r});  % Data is N x P
+                P=size(Y,2);
+                beta=mva_prewhiten_beta(Y,SPM);
+                
+                % Make the two contrast matrices:
+                Z1=indicatorMatrix('identity_p',(double(D.hand==0 & D.stimType==0) .* D.digit));
+                Z2=indicatorMatrix('identity_p',(double(D.hand==1 & D.stimType==0) .* D.digit));
+                Z3=indicatorMatrix('identity_p',(double(D.hand==1 & D.stimType==1) .* D.digit));
+                C=indicatorMatrix('allpairs',[1:5]);
+                
+                % indexes for odd and even runs
+                odd     = logical(mod(D.run,2));
+                even    = logical(1-mod(D.run,2));
+                
+                % distance for odd runs
+                S.dist1(1,:) = distance_ldc(beta(odd,:),Z1(odd,:),C,D.run(odd));
+                S.dist1(2,:) = distance_ldc(beta(odd,:),Z2(odd,:),C,D.run(odd));
+                S.dist1(3,:) = distance_ldc(beta(odd,:),Z3(odd,:),C,D.run(odd));
+                
+                % distance for even runs
+                S.dist2(1,:) = distance_ldc(beta(even,:),Z1(even,:),C,D.run(even));
+                S.dist2(2,:) = distance_ldc(beta(even,:),Z2(even,:),C,D.run(even));
+                S.dist2(3,:) = distance_ldc(beta(even,:),Z3(even,:),C,D.run(even));
+                
+                vec=[1;1;1];
+                S.SN=s*vec;
+                S.subj=repmat(subj_name(s),length(vec),1);
+                S.region=r*vec;
+                S.hand=[0;1;1];
+                S.stimtype=[0;0;1];
+                S.psc=[mean(Act.psc(indx,1));mean(Act.psc(indx,2));mean(Act.psc(indx,3))];
+                S.group=subj_group(s)*vec;
+                
+                T=addstruct(T,S);
+                fprintf('%d %d\n',s,r);
+            end;
+        end;
+        
+        T.regSide=regSide(T.region)';
+        T.regType=regType(T.region)';
+        save(fullfile(regDir,'reg_distance_raw_splithalf.mat'),'-struct','T');
+        varargout={T};        
+    case 'ROI_spatVSfunc'                  % Do extraction of time series to LDA-t values
+        % T=df1_imana('ROI_distance',[1:11]);
+        % save('reg_distance_raw.mat','-struct','T');
+        
+        selection='none';
+        fcn='stats';
+        prct=0;
+        %         regions=[1 2 3 9 10    11 12 13 19 20];
+        regions=[1 2];
+        param={};
+        Act = load(fullfile(regDir,'reg_data_8.mat'));
+        sn=varargin{1};
+        T=[];
+        
+        for s=sn
+            glmDirSubj=fullfile([glmDir], subj_name{s});
+            cd(fullfile(glmDirSubj));
+            load SPM;
+            D=load(fullfile(glmDir, subj_name{s},'SPM_info.mat'));
+            load(fullfile(regDir,[subj_name{s} '_regions.mat']));
+            
+            % Get and move the raw data files
+            raw_data=SPM.xY.P; % Get regions
+            Raw={};
+            for i=1:size(raw_data,1)
+                raw_data(i,:)=strrep(raw_data(i,:),'\','/');
+                [d,name,ext,num]=spm_fileparts(raw_data(i,:));
+                Raw{i}=fullfile(baseDir,'imaging_data',subj_name{s},[name ext num]);
+            end;
+            V=spm_vol(char(Raw));
+            
+            % Loop over the possile regions
+            for r=regions
+                indx=(Act.SN==s & Act.regNum==r);
+                
+                % Get the 200 most activated voxels in each region
+                % By magnitude of activation
+                M=mean(Act.psc(indx,1:2),2)./sqrt(Act.ResMs(indx,:));
+                [~,i]=sort(M,1,'descend');
+                R{r}.data=R{r}.data(i(1:min(300,length(i))),:);
+                
+                A       = getrow(Act,indx);
+                A       = getrow(A,i(1:min(300,length(i))));
+                
+                % calculate odd and even beta patterns
+                e1   = (double(D.hand==0 & D.stimType==0) .* D.digit);
+                e2   = (double(D.hand==1 & D.stimType==0) .* D.digit);
+                e3   = (double(D.hand==1 & D.stimType==1) .* D.digit);
+                
+                e2(e2>0) = e2(e2>0) + 5;
+                e3(e3>0) = e3(e3>0) + 10;
+%                 event   = sum([e1 e2 e3],2);
+                event   = sum([e2 e3],2);
+                
+                Y   = region_getdata(V,R{r});  % Data is N x P
+
+                for m=1:4
+                    clear beta xyz
+                    switch(m)
+                        case 1      % use multivariate noise norm using avg condition vector
+                            beta = mva_prewhiten_beta(Y,SPM)';
+                            C = indicatorMatrix('identity',D.run);
+                            beta = beta'-C*pinv(C)*beta';
+                            
+                            % mean run subtraction
+%                             imagesc(indicatorMatrix('identity',D.run))
+                            beta = pivottablerow(event,beta,'mean(x,1)','subset',event~=0);
+                            xyz  = A.xyz;
+                        case 2      % use univariate noise norm using avg condition vector
+                            % subtract run mean
+                            C = indicatorMatrix('identity',D.run);
+                            
+                            % univariate noise norm
+                            beta = bsxfun(@rdivide,A.beta,A.ResMs);
+                            beta = beta'-C*pinv(C)*beta';
+                            beta = pivottablerow(event,beta,'mean(x,1)','subset',event~=0);
+                            xyz  = A.xyz;
+                        case 3      % use multivariate noise norm using full condition vector
+                            beta = mva_prewhiten_beta(Y,SPM)';
+                            C = indicatorMatrix('identity',D.run);
+                            beta = beta'-C*pinv(C)*beta';
+                            
+                            % mean run subtraction
+%                             imagesc(indicatorMatrix('identity',D.run))
+                            beta = pivottablerow([D.run event],beta,'mean(x,1)','subset',event~=0);
+                            xyz  = A.xyz;
+                        case 4      % use univariate noise norm using full condition vector
+                            % subtract run mean
+                            C = indicatorMatrix('identity',D.run);
+                            
+                            % univariate noise norm
+                            beta = bsxfun(@rdivide,A.beta,A.ResMs);
+                            beta = beta'-C*pinv(C)*beta';
+                            beta = pivottablerow([D.run event],beta,'mean(x,1)','subset',event~=0);
+                            xyz  = A.xyz;                            
+                    end;
+                    
+                    % estimate metrics
+                    fDist = pdist(beta','euclidean');
+                    cDist = pdist(beta','correlation');
+                    sDist = pdist(xyz,'euclidean');
+
+                    e           = [-Inf 0:1:20 Inf];
+                    [cnt, bin]  = histc(sDist',e);
+                    fcnt        = pivottable(bin,[],fDist','mean');
+                    ccnt        = pivottable(bin,[],cDist','mean');
+                    eupdated    = e(unique(bin));
+                    if length(eupdated)~=length(fcnt)
+                        keyboard;
+                    end;
+                            
+                    vec = ones(length(eupdated),1);
+                    S.SN        = s*vec;
+                    S.region    = r*vec;
+                    S.hand      = 0*vec;
+                    S.stimtype  = 0*vec;
+                    S.method    = m*vec;
+                    S.voxdist   = eupdated'; 
+                    S.funcdist  = fcnt; 
+                    S.corrdist  = ccnt; 
+                    S.group     = subj_group(s)*vec;
+
+                    T=addstruct(T,S);
+                    fprintf('%d %d %m\n',s,r);
+                    disp(size(beta));
+                end;
+            end;
+        end;
+        
+        T.regSide=regSide(T.region)';
+        T.regType=regType(T.region)';
+        save(fullfile(regDir,'reg_distance_spat_vs_func.mat'),'-struct','T');
+        varargout={T};        
     case 'ROI_activation'                  % Do extraction of time series to LDA-t values
         regions=[1 2 11 12];                % left right S1/M1
         sn=varargin{1};
@@ -1858,7 +2231,7 @@ switch(what)
             Raw={};
             for i=1:size(raw_data,1)
                 raw_data(i,:)=strrep(raw_data(i,:),'\','/');
-                [dir,name,ext,num]=spm_fileparts(raw_data(i,:));
+                [d,name,ext,num]=spm_fileparts(raw_data(i,:));
                 Raw{i}=fullfile(baseDir,'imaging_data',subj_name{s},[name ext num]);
             end;
             V=spm_vol(char(Raw));
@@ -1954,7 +2327,7 @@ switch(what)
             Raw={};
             for i=1:size(raw_data,1)
                 raw_data(i,:)=strrep(raw_data(i,:),'\','/');
-                [dir,name,ext,num]=spm_fileparts(raw_data(i,:));
+                [d,name,ext,num]=spm_fileparts(raw_data(i,:));
                 Raw{i}=fullfile(baseDir,'imaging_data',subj_name{s},[name ext num]);
             end;
             V=spm_vol(char(Raw));
@@ -2239,6 +2612,78 @@ switch(what)
         end;
         set(gcf,'PaperPosition',[1 1 9 5]);
         wysiwyg;        
+    case 'plot_fingerpatterns_ipsicontra'               % Makes a plot of all finger patterns
+        sn=varargin{1};
+        atlas=2;
+        vararginoptions({varargin{3:end}},{'atlas'});
+        
+        loc = [1 1 1 1];
+        dig = [7 9 2 4];
+        sc  = {[-6 12],[-6 12],[-6 12],[-6 12]};
+        vec = [];
+        S = [];
+        
+        for i=1:length(loc)
+            h = loc(i);
+            groupDir=[caretDir filesep atlasname{atlas}  filesep hemName{h} ];
+            cd(groupDir);
+            border=fullfile(caretDir,atlasname{atlas},hemName{h},['CS.border']);
+            switch(h)
+                case 2
+                    coord='rh.FLAT.coord';
+                    topo='rh.CUT.topo';
+                    data='rh.surface_shape';
+%                     xlims=[-10 20];
+%                     ylims=[-15 30];
+                    xlims=[-5 15];
+                    ylims=[-5 15];
+                case 1
+                    coord='lh.FLAT.coord';
+                    topo='lh.CUT.topo';
+                    data='lh.surface_shape';
+%                     xlims=[-20 10];
+%                     ylims=[-15 30];
+                    xlims=[-15 5];
+                    ylims=[-5 15];
+            end;
+            B=caret_load(border);
+
+            
+            data=fullfile(caretDir,[atlasA{atlas} subj_name{sn}],hemName{h},[subj_name{sn} '_finger.metric']);
+            sshape=fullfile(caretDir,atlasname{atlas},hemName{h},[hem{h} '.surface_shape']);
+
+            subplot(2,4,i);
+            M=caret_plotflatmap('col',2,'data',sshape,'col',1,'border',B.Border,'topo',topo,'coord',coord,'xlims',xlims,'ylims',ylims);
+
+            subplot(2,4,4+i);
+%             x           = caret_load(data);
+%             x           = x.data(:,dig(i));
+%             x           = (x-nanmean(x))/nanstd(x);
+            
+            [M,d]=caret_plotflatmap('M',M,'col',dig(i),'data',data,'cscale',sc{i},...
+                'border',B.Border,'topo',topo,'coord',coord);
+            maxT(i)=max(d(:));
+            
+            x           = caret_load(data);
+            Si.vec      = x.data(:,dig(i));
+            Si.dig      = i * ones(length(Si.vec),1);
+            S           = addstruct(S,Si);
+            
+            vec(:,i) = Si.vec;
+        end;
+        
+        mm=max(maxT);
+        for i=1:4
+            subplot(2,4,4+i);
+            caxis([-mm/2 mm]);
+        end;        
+        
+        subplot(2,4,1:4)
+        vec = vec(~any(isnan(vec),2),:);
+        vec = vec(~any(isnan(vec),2),:);
+        plot(vec);
+        disp(corr(vec,'type','pearson'));
+        varargout = {S};
     case 'SPAT_metrics2d'
         atlas       = 2;
         roiType     = [1 2];
@@ -2300,12 +2745,7 @@ switch(what)
                                     X       = mean(M.X(:,idx));
                                     Y       = mean(M.Y(:,idx));
                                     hold on; patch(M.X(:,idx),M.Y(:,idx),'k'); hold off;
-                                case 2          % center of gravity (softmax, with negative values)
-                                    k       = 0.8;
-                                    w       = exp(k*d)./sum(exp(k*d));
-                                    X       = sum(mean(M.X,1).*w);
-                                    Y       = sum(mean(M.Y,1).*w);
-                                case 3          % center of gravity (softmax, no negative values)
+                                case 2          % center of gravity (softmax, no negative values)
                                     k       = 0.2;
                                     idx     = d>0;
                                     x       = d(idx);
@@ -2314,7 +2754,7 @@ switch(what)
                                     w       = exp(k*x)./sum(exp(k*x));
                                     X       = sum(mean(X,1).*w);
                                     Y       = sum(mean(Y,1).*w);
-                                case 4          % center of gravity (softmax, no negative values)
+                                case 3          % center of gravity (softmax, no negative values)
                                     k       = 0.4;
                                     idx     = d>0;
                                     x       = d(idx);
@@ -2323,7 +2763,7 @@ switch(what)
                                     w       = exp(k*x)./sum(exp(k*x));
                                     X       = sum(mean(X,1).*w);
                                     Y       = sum(mean(Y,1).*w);
-                                case 5          % center of gravity (softmax, no negative values)
+                                case 4          % center of gravity (softmax, no negative values)
                                     k       = 0.6;
                                     idx     = d>0;
                                     x       = d(idx);
@@ -2332,7 +2772,7 @@ switch(what)
                                     w       = exp(k*x)./sum(exp(k*x));
                                     X       = sum(mean(X,1).*w);
                                     Y       = sum(mean(Y,1).*w);
-                                case 6          % center of gravity (softmax, no negative values)
+                                case 5          % center of gravity (softmax, no negative values)
                                     k       = 0.8;
                                     idx     = d>0;
                                     x       = d(idx);
@@ -2341,6 +2781,16 @@ switch(what)
                                     w       = exp(k*x)./sum(exp(k*x));
                                     X       = sum(mean(X,1).*w);
                                     Y       = sum(mean(Y,1).*w);
+                                case 6          % simple mean
+                                    k       = 0.8;
+                                    idx     = d>0;
+                                    x       = d(idx);
+                                    X       = M.X(:,idx);
+                                    Y       = M.Y(:,idx);
+                                    X       = mean(X,1);
+                                    Y       = mean(Y,1);
+                                    X       = mean(x.*X);
+                                    Y       = mean(x.*Y);
                             end;
 
                             % Saving data for each subject/hemisphere/hand
@@ -2370,6 +2820,201 @@ switch(what)
         end;
         varargout = {S};
         save(fullfile(regDir,'spatial_CoG.mat'),'-struct','S');
+    case 'SPAT_metrics2d_splithalf'
+        atlas       = 2;
+        roiType     = [1 2];
+        vararginoptions(varargin,{'atlas','type'});
+        
+        S=[];
+        hand  = [ones(1,5) 2*ones(1,10)];
+        digit = repmat(1:5,1,3);
+        condition  = [ones(1,10) 2*ones(1,5)];
+        
+        type = {'odd','even'};
+        
+        for ty=1:2
+            for sn=1:length(subj_name)
+                for r=roiType
+                    for h=1:2              
+                        fprintf('Type %d, SN %d, REG %d, HEM %d\n',ty,sn,r,h);
+
+                        groupDir    = [caretDir filesep atlasname{atlas}  filesep hemName{h} ];
+                        border      = fullfile(caretDir,atlasname{atlas},hemName{h},['CS.border']);
+                        paint       = fullfile(caretDir,atlasname{atlas},hemName{h},['ROI.paint']);
+                        cd(groupDir);
+
+                        switch(h)
+                            case 2
+                                coord='rh.FLAT.coord';
+                                topo='rh.CUT.topo';
+                                xlims=[-10 20];
+                                ylims=[-10 20];
+                            case 1
+                                coord='lh.FLAT.coord';
+                                topo='lh.CUT.topo';
+                                xlims=[-20 10];
+                                ylims=[-10 20];
+                        end;
+                        B=caret_load(border);
+                        P=caret_load(paint);
+
+                        dataFile=fullfile(caretDir,[atlasA{atlas} subj_name{sn}],hemName{h},[subj_name{sn} '_finger_' type{ty} '.metric']);
+                        sshape=fullfile(caretDir,atlasname{atlas},hemName{h},[hem{h} '.surface_shape']);
+
+                        subplot(4,5,16);
+                        M=caret_plotflatmap('col',2,'data',sshape,'col',1,'border',B.Border,'topo',topo,'coord',coord,'xlims',xlims,'ylims',ylims);
+
+                        % selecting only vertices that belong to the defined region
+                        % of interest
+                        data    = caret_load(dataFile);
+                        idxROI  = P.data==r;
+                        data.data(~idxROI,:)=nan;
+
+                        MM  = cell(1,15);
+                        X   = cell(1,15);
+                        Y   = cell(1,15);
+                        dd  = cell(1,15);
+                        % 0. get the finger t-maps
+                        for i=1:15
+                            subplot(4,5,i);
+                            [MM{i},dd{i}]=caret_plotflatmap('M',M,'col',i,'data',data,'cscale',[-6 12],...
+                                'border',B.Border,'topo',topo,'coord',coord);
+                            XX{i} = mean(MM{1}.X,1)';
+                            YY{i} = mean(MM{1}.Y,1)';
+                        end;
+
+                        % 1. calculate map-smoothing metrics
+                        for i=1:15
+                            Xi = XX{i};
+                            Yi = YY{i};
+                            d = dd{i};
+                            
+                            % calculating 2d metrics
+                            for m=1:6
+                                switch(m)
+                                    case 1          % peak activation
+                                        k       = 1; 
+                                        [~,idx] = max(d);
+                                        X       = Xi(idx);
+                                        Y       = Yi(idx);
+                                    case 2          % center of gravity (softmax, no negative values)
+                                        k       = 0.8;
+                                        idx     = d>0;
+                                        x       = d(idx);
+                                        X       = Xi(idx);
+                                        Y       = Yi(idx);
+                                        w       = exp(k*x)./sum(exp(k*x));
+                                        X       = sum(mean(X,1).*w);
+                                        Y       = sum(mean(Y,1).*w);
+                                    case 3          % center of gravity (softmax, no negative values)
+                                        k       = 0.6;
+                                        idx     = d>0;
+                                        x       = d(idx);
+                                        X       = Xi(idx);
+                                        Y       = Yi(idx);
+                                        w       = exp(k*x)./sum(exp(k*x));
+                                        X       = sum(mean(X,1).*w);
+                                        Y       = sum(mean(Y,1).*w);
+                                    case 4          % center of gravity (softmax, no negative values)
+                                        k       = 0.4;
+                                        idx     = d>0;
+                                        x       = d(idx);
+                                        X       = Xi(idx);
+                                        Y       = Yi(idx);
+                                        w       = exp(k*x)./sum(exp(k*x));
+                                        X       = sum(mean(X,1).*w);
+                                        Y       = sum(mean(Y,1).*w);
+                                    case 5          % center of gravity (softmax, no negative values)
+                                        k       = 0.2;
+                                        idx     = d>0;
+                                        x       = d(idx);
+                                        X       = Xi(idx);
+                                        Y       = Yi(idx);
+                                        w       = exp(k*x)./sum(exp(k*x));
+                                        X       = sum(mean(X,1).*w);
+                                        Y       = sum(mean(Y,1).*w);
+                                    case 6          % simple mean
+                                        k       = 0;
+                                        idx     = d>0;
+                                        x       = d(idx);
+                                        X       = Xi(idx);
+                                        Y       = Yi(idx);
+                                        w       = exp(k*x)./sum(exp(k*x));
+                                        X       = sum(mean(X,1).*w);
+                                        Y       = sum(mean(Y,1).*w);
+                                end;
+
+                                % Saving data for each subject/hemisphere/hand
+                                Si.x        = X;
+                                Si.y        = Y;
+                                Si.regSide  = h;
+                                Si.region   = r;
+                                Si.hand     = hand(i);
+                                Si.digit    = digit(i);
+                                Si.condition= condition(i);
+                                Si.metric   = m;
+                                Si.k        = k;
+                                Si.sn       = sn;
+                                Si.group    = subj_group(sn);
+                                Si.type     = ty;
+                                Si.subjname = subj_name(sn);
+                                S           = addstruct(S,Si);
+                            end;            
+                        end;
+                        
+                        
+                        % 2. calculate voxel-smoothing metrics
+                        for c = unique(condition(hand==h))'
+                            Xi  = cat(2,[],XX{hand==h & condition==c});
+                            Yi  = cat(2,[],YY{hand==h & condition==c});
+                            d   = cat(1,[],dd{hand==h & condition==c});
+                            for m=7
+                                switch(m)
+                                    case 7          % center of gravity (softmax, no negative values)
+                                        k       = 0.8;
+                                        idx     = all(d>0,1);
+                                        x       = d(:,idx);
+                                        X       = Xi(idx,:);
+                                        Y       = Yi(idx,:);
+                          
+                                        w       = bsxfun(@rdivide,exp(k*x),sum(exp(k*x),1));
+                                        X       = sum(X.*w',1)./sum(w,2)';
+                                        Y       = sum(Y.*w',1)./sum(w,2)';
+                                end;
+
+                                % Saving data for each subject/hemisphere/hand
+                                v           = ones(5,1);
+                                Si.x        = X';
+                                Si.y        = Y';
+                                Si.regSide  = h * v;
+                                Si.region   = r * v;
+                                Si.hand     = h * v;
+                                Si.digit    = digit(i) *v ;
+                                Si.condition= condition(i);
+                                Si.metric   = m;
+                                Si.k        = k;
+                                Si.sn       = sn;
+                                Si.group    = subj_group(sn);
+                                Si.type     = ty;
+                                Si.subjname = subj_name(sn);
+                                S           = addstruct(S,Si);
+                            end;            
+                        end;
+                        
+                        
+%                         mm=max(maxT);
+%                         for i=1:15
+%                             subplot(4,5,i);
+%                             caxis([-mm/2 mm]);
+%                         end;
+                        %keyboard;
+                    end;
+                end;
+            end;
+        end;
+        
+        varargout = {S};
+        save(fullfile(regDir,['spatial_CoG_splithalf.mat']),'-struct','S');        
     case 'SPAT_tuningFunctionDistribution'      % shows the distribution of tuning functions within an individuals
         atlas       = 2;
         hemi        = 1;     % 1. left/2. right        
@@ -2457,14 +3102,14 @@ switch(what)
         CAT.errorcolor={[0 0 0.7] [0.5 0 0.5] [0.7 0 0] [0.5 0.5 0],[0 0.7 0]};
         CAT.errorwidth=2;
         
-        h   = make_figure;
-        [x,y]=xyplot(D.x,D.y,D.digit,'subset',D.metric==3,'split',D.digit,...
+        h = plt.figure;
+        [x,y]=xyplot(D.x,D.y,D.digit,'subset',D.metric==4,'split',D.digit,...
                      'CAT',CAT,'leg','none');%,'leglocation','southwest','leg','auto');
-        set_graphics(h,'xlabel','anterior -> posterior','ylabel','ventral -> dorsal',...
-                       'ylim',[2 6],'xlim',[3 5]);
+        plt.set(h,'ylim',[2 6],'xlim',[3 5]);
+        plt.labels('anterior -> posterior','ventral -> dorsal');
         
         % saving results
-        save_figure(gcf,fullfile(figureDir,sprintf('%s_%s.pdf',what,grpLabel{group})),'style','brain_1col');
+%         save_figure(gcf,fullfile(figureDir,sprintf('%s_%s.pdf',what,grpLabel{group})),'style','brain_1col');
     case 'SPAT_estimateDistances'           % estimate distances based on the calculate x-y coordinates
         metric      = 3;    % cog, without negative values
         vararginoptions(varargin,{'hand','condition','metric'});
@@ -2489,7 +3134,7 @@ switch(what)
                         
                         for m = unique(Dh.metric)'
                             Dm  = getrow(Dh,Dh.metric==m);
-                            x   = pivottablerow(Dm.digit,[Dm.x Dm.y],'nanmean');
+                            x   = pivottablerow(Dm.digit,[Dm.x Dm.y],'nanmean(x,1)');
                             d   = pdist(x,'euclidean');
 
                             % Saving results
@@ -2510,6 +3155,56 @@ switch(what)
         end;
         varargout = {S};
         save(fullfile(regDir,'spatial_distances.mat'),'-struct','S');
+    case 'SPAT_estimateDistances_splithalf'           % estimate distances based on the calculate x-y coordinates
+        D = load(fullfile(regDir,'spatial_CoG_splithalf.mat'));
+        D = getrow(D,D.hand~=D.regSide); % hand is always contralateral
+        
+        % Looping over subjects/regions/conditions/hand 
+        S = [];
+        for ty=1:2
+            Dt = getrow(D,D.type==ty);
+            
+            for sn = unique(D.sn)'
+                Ds = getrow(Dt,Dt.sn==sn);
+
+                for reg = unique(Ds.region)'
+                    Dr = getrow(Ds,Ds.region==reg);
+
+                    for cond = unique(Dr.condition)'
+                        Dc = getrow(Dr,Dr.condition==cond);
+
+                        for h = unique(Dc.hand)'
+                            Dh  = getrow(Dc,Dc.hand==h);
+
+                            for m = unique(Dh.metric)'
+                                Dm     	= getrow(Dh,Dh.metric==m);
+                                [x,dig] = pivottablerow(Dm.digit,[Dm.x Dm.y],'nanmean(x,1)');
+                                d       = pdist(x,'euclidean');
+
+                                % Saving results
+                                Si.sn           = sn;
+                                Si.metric       = m;
+                                Si.region       = reg;
+                                Si.condition    = cond;
+                                Si.hand         = h;
+                                Si.group        = mean(Dm.group);
+                                Si.type         = ty;
+                                Si.dist         = d;
+                                Si.x            = x(:,1)';
+                                Si.y            = x(:,2)';
+                                Si.digit        = dig';
+                                S               = addstruct(S,Si);
+
+                                fprintf('Type: %d, SN: %d, Reg: %d, Cond: %d, Hand: %d, Metric: %d\n',ty,sn,reg,cond,h,m);
+                            end;
+                        end;
+                    end;
+                end;            
+            end;
+        end;
+        
+        varargout = {S};
+        save(fullfile(regDir,'spatial_distances_splithalf.mat'),'-struct','S');        
     case 'SPAT_compareDistances'            % compare distances across 
         % Compare distances only for sensory condition only
         D = load(fullfile(regDir,'spatial_distances.mat'));
@@ -2682,7 +3377,7 @@ switch(what)
         end;
         
         % 2. Getting means for finger patterns across groups
-%         sn1 = 1; sn2 = 2;
+%         sn1 = 5; sn2 = 6;
         fp_cont.data    = cData(:,:,sn1);
         fp_dyst.data    = cData(:,:,sn2);
                 
@@ -3611,6 +4306,8 @@ switch(what)
         plt.labels([],'dissimilarity (a.u.)',[],[],223);
         
         plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'style','2x2');                    
+        
+     
     otherwise
         error('no such case!')
 end
