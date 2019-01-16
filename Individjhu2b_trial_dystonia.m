@@ -14,6 +14,7 @@ if isfield(D,'force')
     clear tForce;
 end;
 
+
 % 1. Extract data:
 if (isempty(MOV))
     return;
@@ -25,6 +26,7 @@ screen_t= MOV(:,3);                 % Screentime
 Force   = MOV(:,4:13);              % cols 4-13 are the Force data
 Force   = smooth_kernel(Force,5);   % Smoothing with Gaussian kernel 
 mvc     = max(D.mvc,1);             % if mvc for any finger is less than one, it is set to one
+
 
 % 2. Indices for important experimental variables
 % - state timing events

@@ -19,14 +19,14 @@ regDir=         fullfile(baseDir, 'RegionOfInterest');
 glmName= {'glm_firstlevel_1','glm_firstlevel_2'};
 glmDir= fullfile(baseDir,glmName{1});
 
-% All these variables should go into the patient_list.txt document 
+% All these variables should go into the patient_list.txt document
 subj_MTname={   'MT02554', 'MT02613', 'MT02614', 'MT02689', 'MT02815', ...
     'MT02816', 'MT02852', 'MT02851', 'MT02855', 'MT02853', ...
     'MT02850', 'MT02859', 'MT02860','MT03687','MT03688','MT03686'};%'MT02481','MT02481',
 subj_name={ 'd01', 's01', 'd02', 's02', 'd04', ...
             's04', 'd06', 's03', 'd07', 'd08', ...
             'd09', 'd10', 'd11','s06','s07', ...
-            's08','s05'};  
+            's08','s05'};
 subj_group=[2 1 2 1 2 ...
             1 2 1 2 2 ...
             2 2 2 1 1 ...
@@ -34,9 +34,9 @@ subj_group=[2 1 2 1 2 ...
 subj_NumVol= [  150 144 144 144 144 ...
                 144 144 144 144 144 ...
                 144 144 144 146 146 ...
-                146 141]; 
+                146 141];
 
-% Other variables 
+% Other variables
 dummyScans= 3; % number of scans that are deleted from the functional data =======05.09.2012
 subj_NumVol= subj_NumVol-dummyScans; % delete dummy scans from the total number of volumes in the functional data =======05.09.2012
 
@@ -201,7 +201,7 @@ switch(what)
                 end;
             end;
             J.scans{r} = N;
-        end        
+        end
         J.nslices = 32;
         J.tr = 2.72;
         J.ta = 2.635;
@@ -236,7 +236,7 @@ switch(what)
             end;
             spmj_make4dnii(fullfile(baseDir,'imaging_data_raw',subj_name{sn},[prefix,subj_name{sn},'_run',run{i},'.nii']),char(fnames));
         end;
-    
+
     case 'move_images'%_____________STEP 5____________________________
         % df1_imana('move_images',2)
         prefix='ua'; %'ua'
@@ -278,7 +278,7 @@ switch(what)
         set(0,'DefaultAxesColorOrder',[0 0 0], 'DefaultAxesLineStyleOrder','-|.|:')
         subplot(2,1,1); plot(X(:,1:3) )
         legend('x', 'y', 'z', 'location' , 'EastOutside')
-        
+
         subplot(2,1,2); plot(X(:,4:6)*180/pi)
         legend('pitch', 'roll', 'yaw', 'location' , 'EastOutside')
     case 'coreg'%___________________STEP 6____________________________
@@ -369,17 +369,17 @@ switch(what)
             %----reslice volume
             % V= spm_vol(nam{1});
             % spmj_reslice_vol('mask_noskull.nii', V.dim, V.mat, 'rmask_noskull.nii')
-            
+
         end
     case 'make_glm_1'%________________STEP 9____________________________
         %df1_imana('make_glm',1)
         % set threshold for the masking
-        
+
         subj=varargin{1};
         timePerSlice= 2.72/32; % time per slice in sec
         delay=  2.72;                   % 1 TR is seconds
         dur=    3.2*2.72;               % In seconds
-        
+
         for sn=subj
             %----
             prefix= 'ua'; %'a' for new sequence
@@ -392,17 +392,17 @@ switch(what)
             %correct for the number of dummy scans (not in nii file)
             %TR= D.startTR-num_dummys;
             Slice= D.startSlice-dummyScans*32;
-            
+
             J.dir = {fullfile(baseDir,'glm_firstlevel_1', subj_name{sn})};
             if (~exist(J.dir{1},'dir'))
                 mkdir(J.dir{1});
             end;
-            
+
             J.timing.units = 'secs';% 'scans';%
             J.timing.RT = 2.72;
             J.timing.fmri_t = 16;
             J.timing.fmri_t0 = 1;
-            
+
             for r=1:numel(run) %run
                 for i=1:numVolumes
                     N{i} = fullfile(baseDir, 'imaging_data',subj_name{sn},[prefix,subj_name{sn},'_run',run{r},'.nii,',num2str(i)]); % ua uab 'ra'
@@ -448,19 +448,19 @@ switch(what)
             J.cvi =  'wls';
             matlabbatch{1}.spm.tools.rwls.fmri_rwls_spec=J;
             save(fullfile(J.dir{1},'SPM_info.mat'),'-struct','T');
-            
+
             spm_jobman('run',matlabbatch);
         end;
         % varargout={J};
     case 'make_glm_2'%__________One regressor per run, but with extra regressors for error trials
         %df1_imana('make_glm',1)
         % set threshold for the masking
-        
+
         subj=varargin{1};
         timePerSlice= 2.72/32; % time per slice in sec
         delay=  2.72;                   % 1 TR is seconds
         dur=    3.2*2.72;               % In seconds
-        
+
         for sn=subj
             %----
             prefix= 'ua'; %'a' for new sequence
@@ -473,17 +473,17 @@ switch(what)
             %correct for the number of dummy scans (not in nii file)
             %TR= D.startTR-num_dummys;
             Slice= D.startSlice-dummyScans*32;
-            
+
             J.dir = {fullfile(baseDir,'glm_firstlevel_2', subj_name{sn})};
             if (~exist(J.dir{1},'dir'))
                 mkdir(J.dir{1});
             end;
-            
+
             J.timing.units = 'secs';% 'scans';%
             J.timing.RT = 2.72;
             J.timing.fmri_t = 16;
             J.timing.fmri_t0 = 1;
-            
+
             for r=1:numel(run) %run
                 for i=1:numVolumes
                     N{i} = fullfile(baseDir, 'imaging_data',subj_name{sn},[prefix,subj_name{sn},'_run',run{r},'.nii,',num2str(i)]); % ua uab 'ra'
@@ -491,7 +491,7 @@ switch(what)
                 J.sess(r).scans= N;
                 J.sess(r).cond=[];
                 indx=find(D.BN==r  & D.announce==1);
-                
+
                 for i=1:length(indx) % hand 0=> left 1=> right
                     j=indx(i);
                     J.sess(r).cond(end+1).name = ['B%dH%dC%dD%d',r,D.hand(j),D.stimType(j),D.digit(j)];
@@ -522,7 +522,7 @@ switch(what)
             J.cvi =  'wls';
             matlabbatch{1}.spm.tools.rwls.fmri_rwls_spec=J;
             save(fullfile(J.dir{1},'SPM_info.mat'),'-struct','T');
-            
+
             spm_jobman('run',matlabbatch);
         end;
         varargout={J};
@@ -535,7 +535,7 @@ switch(what)
             matlabbatch{1}.spm.tools.rwls.fmri_rwls_est.method.Classical = 1;
             spm_jobman('run',matlabbatch);
         end
-        
+
         % for checking
         % load('SPM')
         % spm_rwls_resstats(SPM)
@@ -549,7 +549,7 @@ switch(what)
             cd(fullfile(baseDir,'glm_firstlevel_1', subj_name{s}));
             load('SPM.mat');
             SPM=spmj_move_rawdata(SPM,fullfile(baseDir,'imaging_data',subj_name{s}));
-            
+
             load(fullfile(regDir,sprintf('%s_regions.mat',subj_name{s})));
             R={R{2},R{10}};
             [y_raw, y_adj, y_hat, y_res,B] = region_getts(SPM,R);
@@ -582,7 +582,7 @@ switch(what)
                 hold on;
                 traceplot([-4:12],T.y_hat,'errorfcn','stderr','subset',T.region==r & T.type==t,'linestyle',':');
                 hold off;
-                
+
             end;
         end;
     case 'contrast'%________________STEP 11
@@ -594,12 +594,12 @@ switch(what)
             load SPM;
             T=load('SPM_info.mat');
             SPM=rmfield(SPM,'xCon');
-            
+
             con=zeros(1,size(SPM.xX.X,2));
             con(T.regType==1)=1;
             con=con/sum(con);
             SPM.xCon(1)=spm_FcUtil('Set','t_task', 'T', 'c',con',SPM.xX.xKXs);
-            
+
             %____F contrast between seq
             for h=[0 1] % hand 0=> left 1=> right
                 for s= [0 1] % stimType  0=> of 1=> passive mov
@@ -618,9 +618,9 @@ switch(what)
                         %h+s+2 %check
                     end
                 end
-                
+
             end;
-            
+
             %             %_____t contrast task against rest
             for h=[0 1] % hand 0=> left 1=> right
                 for s= [0 1] % stimType  0=> of 1=> passive mov
@@ -633,7 +633,7 @@ switch(what)
                     end
                 end
             end;
-            
+
             %             % Optional: t-contrast for each finger / hand against rest
             for h=[0 1] % hand 0=> left 1=> right
                 for s= [0 1] % stimType  0=> of 1=> passive mov
@@ -658,8 +658,8 @@ switch(what)
             %                     SPM.xCon(end+1)=spm_FcUtil('Set','t_err_left', 'T', 'c',con',SPM.xX.xKXs);
             %                 end;
             %             end;
-            
-            
+
+
             %____do the constrasts
             SPM=spm_contrasts(SPM,[1:length(SPM.xCon)]);
             save SPM SPM;
@@ -698,7 +698,7 @@ switch(what)
         sn=varargin{1};
         atlas=2;
         refDir= fullfile(baseDir,glmName{1});
-        
+
         for s=sn
             for h=1:2
                 caret_subjDIR = fullfile(caretDir,[atlasA{atlas},subj_name{s}],hemName{h});
@@ -716,7 +716,7 @@ switch(what)
             LI=LI';
             save(fullfile(refDir,subj_name{s}, 'vol_roi_100vox.mat'), 'LI','voxmin','voxmax','voxel','radvox');
             save(fullfile(refDir,subj_name{s}, 'vol_surf.mat'), 'voxel','node','surfindx','depth');
-            
+
 %             V=volDef;
 %             X=zeros(V.dim);
 %             depth=depth+1;
@@ -732,40 +732,40 @@ switch(what)
         sn=varargin{1};
         atlas=2;
         refDir= fullfile(baseDir,glmName{1});
-        
+
         for s=sn
-            % Get cerebellar mask 
+            % Get cerebellar mask
             cereb_mask=fullfile(anatomicalDir,subj_name{s},'suit',['c_' subj_name{s} '_anatomical_pcereb_corr.nii']);
             Vcereb_mask=spm_vol(cereb_mask);
-            
-            % Get gray matter segmentation 
+
+            % Get gray matter segmentation
             gray_matter=fullfile(anatomicalDir,subj_name{s},'suit',[subj_name{s} '_anatomical_seg1.nii']);
             Vgray_matter=spm_vol(gray_matter);
-            
-            % Function mask image 
+
+            % Function mask image
             volDef= spm_vol(fullfile(refDir, subj_name{s},'mask.img'));
             volDef.mask=spm_read_vols(volDef);
             indx=find(volDef.mask>0);
             voxels=surfing_inds2subs(volDef.dim,indx);
             voxels=[voxels ones(size(voxels,1),1)];
-            
+
             voxelsAna=(inv(Vcereb_mask.mat)*volDef.mat*voxels')';
             A=spm_sample_vol(Vcereb_mask,voxelsAna(:,1),voxelsAna(:,2),voxelsAna(:,3),1);
-            
+
             voxelsSeg=(inv(Vgray_matter.mat)*volDef.mat*voxels')';
             B=spm_sample_vol(Vgray_matter,voxelsSeg(:,1),voxelsSeg(:,2),voxelsSeg(:,3),1);
-            
+
             volDef.mask(indx(A<0.5 | B<0.2))=0;
-            
-            % Load the cortical searchlights 
+
+            % Load the cortical searchlights
             searchlightname=fullfile(refDir,subj_name{s},'vol_roi_100vox.mat');
             S=load(searchlightname);
 
             % Kill the voxels that belong to cortical searchlights
-            volDef.mask(S.voxel)=0; 
-            
+            volDef.mask(S.voxel)=0;
+
             % Compute the search lights for the cerebellum and add them to
-            % the file 
+            % the file
             [LI,voxmin,voxmax,voxel,radvox]= lmva_voxelselection_volume([20 100],volDef);
             S.LI=[S.LI;LI];
             S.voxel=[S.voxel;voxel];
@@ -777,23 +777,23 @@ switch(what)
     case 'MVA_do'%__________________DF____________________________________
         % df1_imana('MVA_do',1:4, 60,2)
         sn=varargin{1};
-        
+
         workDir= fullfile(baseDir, glmName{1});
         ldafunction= @df1_calcAcc;
-        
+
         for s=sn
             cd(fullfile(workDir, subj_name{s}));
             T= load(fullfile(baseDir,glmName{1}, subj_name{s},'SPM_info.mat'));
             load('SPM');
             %define beta images
             beta_images=  {SPM.Vbeta(SPM.xX.iC).fname}';
-            
+
             %----maybe do it in the futur with this code
             %             idx=find(T.regType==1);
             %                 for i=idx'
             %                     beta_images{i}=  fullfile(glmDirSubj,SPM.Vbeta(i).fname);
             %                 end
-            
+
             lda_names= {fullfile(workDir, subj_name{s}, 'acc_L_motor.nii'),...
                 fullfile(workDir, subj_name{s}, 'acc_R_motor.nii'),...
                 fullfile(workDir, subj_name{s}, 'acc_R_sens.nii')};
@@ -804,17 +804,17 @@ switch(what)
         sn=varargin{1};
         glm=1;
         ldafunction= @df1_calcDist;
-        
+
         for s=sn
             glmDirSubj=fullfile(baseDir,glmName{glm},subj_name{s});
             load(fullfile(glmDirSubj,'SPM.mat'));
             D= load(fullfile(glmDirSubj,'SPM_info.mat'));
             SPM=spmj_move_rawdata(SPM,fullfile(baseDir,'imaging_data',subj_name{s}));
-            
+
             outfiles = {fullfile(glmDirSubj, 'dist_L_motor.nii'),...
                 fullfile(glmDirSubj, 'dist_R_motor.nii'),...
                 fullfile(glmDirSubj, 'dist_R_sens.nii')};
-            
+
             surfaces=load(fullfile(glmDirSubj,['vol_roi_100vox','.mat']));
             lmva_spm(surfaces,SPM.xY.P,outfiles,ldafunction,'params',{SPM,D});
         end;
@@ -831,11 +831,11 @@ switch(what)
             numRegressors= 32*3;
         end
         mu= 1/4;
-        
+
         sigma= sqrt(1/4 * 3/4 * 1/numRegressors);
         images= {['lda_L_motor',num2str(numVox),'.nii'], ['lda_R_motor',num2str(numVox),'.nii'], ['lda_R_sens',num2str(numVox),'.nii']}
         outimages= {['zlda_L_motor',num2str(numVox),'.nii'], ['zlda_R_motor',num2str(numVox),'.nii'], ['zlda_R_sens',num2str(numVox),'.nii']}
-        
+
         for s=sn;
             for j=1:numel(images)
                 cd(fullfile(workDir, subj_name{s}));
@@ -887,11 +887,11 @@ switch(what)
             for j=1:numel(images)
                 [dir_name,name,ext]=spm_fileparts(images{j});
                 sn_images{j}= fullfile(workDir,subj_name{s},images{j});
-                
+
                 out_images{j}= fullfile(groupData,[name, '_' subj_name{s}, outPrefix,  '.nii']);
             end
             spmj_normalization_write(defor, sn_images,'outimages',out_images);
-            
+
             % Do the anatomical
             sn_images={}; out_images={};
             sn_images{1}=fullfile(baseDir, 'anatomicals', subj_name{s},[subj_name{s},'_anatomical.nii']);
@@ -1005,14 +1005,14 @@ switch(what)
         %=========================================================================
         % Map functional volumes on surface over caret
         %=========================================================================
-    
+
     case 'surf_map_con'%_________DF______________New mappint algorithm_____
         %df1_imana('surf_map_con', 3:5)
         % map volume images to metric file and save them in individual surface folder
         sn=varargin{1};
         hemisphere=[1:2];
         atlas=2;
-        
+
         vararginoptions({varargin{2:end}},{'atlas','hemisphere'});
         glm=1;
         fileList={'con_0005.img','con_0006.img', 'con_0007.img', 'spmT_0005.img', 'spmT_0006.img', 'spmT_0007.img'};    %right hand sensory 20:24
@@ -1022,10 +1022,10 @@ switch(what)
                 specname=fullfile(caretSDir,[atlasA{atlas},subj_name{s} '.' hem{h}   '.spec']);
                 white=fullfile(caretSDir,[hem{h} '.WHITE.coord']);
                 pial=fullfile(caretSDir,[hem{h} '.PIAL.coord']);
-                
+
                 C1=caret_load(white);
                 C2=caret_load(pial);
-                
+
                 for f=1:length(fileList)
                     images{f}=fullfile(baseDir, glmName{glm},subj_name{s},fileList{f});
                 end;
@@ -1033,13 +1033,13 @@ switch(what)
                 caret_save(fullfile(caretSDir,[subj_name{s} '_func.metric']),M);
             end;
         end;
-    case 'surf_map_dist'   % Map the distances between fingers across the cortex 
+    case 'surf_map_dist'   % Map the distances between fingers across the cortex
         %df1_imana('surf_map_con', 3:5)
         % map volume images to metric file and save them in individual surface folder
         sn=varargin{1};
         hemisphere=[1:2];
         atlas=2;
-        
+
         vararginoptions({varargin{2:end}},{'atlas','hemisphere'});
         glm=1;
         fileList={'dist_L_motor.nii','dist_R_motor.nii', 'dist_R_sens.nii'};    %right hand sensory 20:24
@@ -1049,10 +1049,10 @@ switch(what)
                 specname=fullfile(caretSDir,[atlasA{atlas},subj_name{s} '.' hem{h}   '.spec']);
                 white=fullfile(caretSDir,[hem{h} '.WHITE.coord']);
                 pial=fullfile(caretSDir,[hem{h} '.PIAL.coord']);
-                
+
                 C1=caret_load(white);
                 C2=caret_load(pial);
-                
+
                 for f=1:length(fileList)
                     images{f}=fullfile(baseDir, glmName{glm},subj_name{s},fileList{f});
                 end;
@@ -1066,7 +1066,7 @@ switch(what)
         sn=varargin{1};
         hemisphere=[1:2];
         atlas=2;
-        
+
         vararginoptions({varargin{2:end}},{'atlas','hemisphere'});
         glm=1;
         fileList={...
@@ -1079,10 +1079,10 @@ switch(what)
                 specname=fullfile(caretSDir,[atlasA{atlas},subj_name{s} '.' hem{h}   '.spec']);
                 white=fullfile(caretSDir,[hem{h} '.WHITE.coord']);
                 pial=fullfile(caretSDir,[hem{h} '.PIAL.coord']);
-                
+
                 C1=caret_load(white);
                 C2=caret_load(pial);
-                
+
                 for f=1:length(fileList)
                     images{f}=fullfile(baseDir, glmName{glm},subj_name{s},fileList{f});
                 end;
@@ -1098,7 +1098,7 @@ switch(what)
         inputcol=[1 2 3];
         atlas=2;
         sn=[3:length(subj_name)];
-        
+
         vararginoptions(varargin,{'atlas','sn'});
         for h=1:2
             surfaceGroupDir=[caretDir filesep atlasname{atlas}  filesep hemName{h} ];
@@ -1137,11 +1137,11 @@ switch(what)
                 data='rh.surface_shape';
                 xlims=[-10 20];
                 ylims=[-15 30];
-                
+
         end;
-        
+
         B=caret_load(border);
-        
+
         data=fullfile(caretDir,['x' subj_name{sn}],hemName{h},[subj_name{sn} '_finger.metric']);
         sshape=fullfile(caretDir,'fsaverage_sym',hemName{h},[hem{h} '.surface_shape']);
         %         subplot(2,3,1);
@@ -1167,7 +1167,7 @@ switch(what)
         %df1_imana('surf_spatial_cog', 3, 1)
         sn=varargin{1};
         reg=varargin{2};%----which region are you looking at
-        
+
         switch reg
             case 1 %M1
                 %lims{1}=[-70 -30 30 70 ];
@@ -1188,7 +1188,7 @@ switch(what)
         AllT=[];
         drawpoints=1;
         drawborder=0;
-        
+
         set(gcf,'PaperPosition',[2 2 8 4]);
         wysiwyg;
         for h=1:2
@@ -1211,7 +1211,7 @@ switch(what)
             %DATA(DATA<group_th)=0;
             %----
             DSCALE=[0.97 5.7;0 0;0.97 1.5];%DSCALE=[0.97 5.7;0 0;0.97 5.7];DSCALE=[0.97 5.7;0 0;0.97 1.5];DSCALE=[2.45 5.7;0 0;0.97 1.5]; % 50% and 40%
-            
+
             %             %----load the ROI file in which SMA and dPM is defined
             %             P=caret_load([hem{h} '.ROI_cog.paint']);
             %----in case you like to draw boarders as well
@@ -1221,7 +1221,7 @@ switch(what)
             else
                 B.Border=[];
             end;
-            
+
             subplot(1,2,h);
             %----plot the backround image with the functional data in the backround
             caret_plotflatmap_rgb('coord',coord,'topo',topo,'underlay',S.data(:,2),...
@@ -1270,16 +1270,16 @@ switch(what)
             set(c1,'MarkerFaceColor',[0.3 0.3 1]);
             set(c2,'MarkerFaceColor',[1 0.3 0.3]);
             hold off;
-            
+
             axis equal;
             fprintf('Anterior\n');
             X=[T.COG_U-T.COG_T];
             T2Hot1(X(:,1:2),0.1)
-            
+
             AllT=addstruct(AllT,T);
             [T.COG_U T.COG_T T.COG_U(:,1)-T.COG_T(:,1)]
         end;
-        
+
         varargout={AllT};
     case 'surf_make_ROIpaint'%___DF______________Generates surface ROI paint file
         %df1_imana('surf_make_ROIpaint')
@@ -1298,7 +1298,7 @@ switch(what)
             ROI(ROI==3 & P.data(:,2)==0)=4;
             ROI(ROI==3 & P.data(:,2)==0)=0;
             ROI(P.data(:,1)==1)=5;
-            
+
             % define Hand area - based on cutoff on flat area and propatlas
             C=caret_load([hem{h} '.FLAT.coord']);
             ROI(:,2)=double(M1>0.2);
@@ -1310,17 +1310,17 @@ switch(what)
         end
     case 'surf_makeGroup'%_______
         atlas=2;
-        
+
         INname={'func','func','func',...
             'accuracy_L_motor','accuracy_R_motor','accuracy_lda_R_sens'};
         OUTname={'func_L_motor','func_R_motor',...
             'func_R_sens',...
             'acc_L_motor','acc_R_motor','acc_R_sens'};
-        
+
         inputcol= [1 2 3 1 1 1];
         replaceNaN=[1 1 1 0 0 0];
         vararginoptions(varargin,{'atlas'});
-        
+
         for h=1:2
             surfaceGroupDir=[caretDir filesep atlasname{atlas} filesep hemName{h} ];
             cd(surfaceGroupDir);
@@ -1341,7 +1341,7 @@ switch(what)
         INname={'acc_left','acc_right'};
         OUTname={'zacc_left','zacc_right'};
         vararginoptions(varargin,{'atlas'});
-        
+
         for h=1:2
             surfaceGroupDir=[caretDir filesep atlasname{atlas} filesep hemName{h} ];
             cd(surfaceGroupDir);
@@ -1361,9 +1361,9 @@ switch(what)
         else
             smoothdir= [num2str(Smooth_iterations), 'iterSmooth'];
         end
-        
+
         subj=1:11;
-        
+
         SPMname={'func_left','func_right',...
             'zacc_left', 'zacc_right'};
         for h=1:2
@@ -1381,7 +1381,7 @@ switch(what)
         end;
     case 'surf_groupCon'              % Different group-GLM models  ....
         %sl1_pattern_behavior('surf_mapCorr',1:3)
-        
+
         type=varargin{1};
         SPMname={'func_left','func_right',...
             'zacc_left', 'zacc_right'};
@@ -1390,7 +1390,7 @@ switch(what)
         groupName={'ltSham','ltAnod','ltCath'};
         numSubj=16;
         numSPM=length(SPMname);
-        
+
         for h=1:2
             surfaceGroupDir=[caretDir filesep 'fsaverage'  filesep hemName{h} ];
             cd(surfaceGroupDir);
@@ -1414,7 +1414,7 @@ switch(what)
                 otherwise
                     error('unknown type');
             end;
-            
+
             for s=1:length(SPMname)
                 %----get the full directory name of the metric files and the smoothed metric files that we create below
                 filename=['s' hem{h} '.' SPMname{s} '.metric']; % smoothed
@@ -1442,7 +1442,7 @@ switch(what)
                         data(:,s+numSPM*3)=cSPM.con(1).Z; % T
                         data(:,s+numSPM*4)=cSPM.con(2).Z;
                         data(:,s+numSPM*5)=cSPM.con(3).Z;
-                        
+
                         column_name{s}=['mean_' SPMname{s}];     %----intercept
                         column_name{s+numSPM}=['diff_' SPMname{s}];   %----slope
                         column_name{s+numSPM*2}=['slope_' SPMname{s}];   %----slope
@@ -1457,7 +1457,7 @@ switch(what)
     case 'ROI_suit'%_____________DF______________Generates suit ROI nii file
         %df1_imana('suit_ROI', 1)
         sn=varargin{1};
-        
+
         SUIT_num= {[3 5],[17 20],[4 7],[19 22]};
         V= spm_vol(fullfile(fileparts(which('suit_reslice' )), 'atlas', 'Cerebellum-SUIT.nii'));
         R_atlas= spm_read_vols(V);
@@ -1479,7 +1479,7 @@ switch(what)
     case 'ROI_define'%___________DF______________Reads the ROI definition from sequence learning paper
         %df1_imana('ROI_define', 1:4)
         sn= varargin{1};
-        
+
         for s=sn
             R=[];
             for h=1:2
@@ -1521,17 +1521,17 @@ switch(what)
         sn=varargin{1};
         T=[];
         for s=sn
-            fprintf('%s\n',subj_name{s}); 
+            fprintf('%s\n',subj_name{s});
             cd(fullfile(glmDir, subj_name{s}));
             load SPM;
             SI=load('SPM_info.mat');    % Load information
             j=find(SI.regType>0); % Find all the regressors of interest
-            
+
             load(fullfile(regDir,[subj_name{s} '_regions.mat']));
             for i=1:length(j)
                 P{i}=sprintf('beta_%4.4d.img',j(i));
             end;
-            
+
             % Add a few extra images
             %----task against rest
             P{end+1}='con_0005.img'; %L_motor
@@ -1542,12 +1542,12 @@ switch(what)
             P{end+1}='spmF_0002.img'; %L_motor
             P{end+1}='spmF_0003.img'; %R_motor
             P{end+1}='spmF_0004.img'; %R_sens
-            
+
             E=getrow(SI,j); % Retain only regressors of interest
-            
+
             V=spm_vol(char(P));
             data = region_getdata(V,R);
-            
+
             for i=1:length(R)
                 if (~isempty(R{i}))
                     D=[];
@@ -1584,11 +1584,11 @@ switch(what)
         data='beta';
         param={};
         dataext='8';
-        
+
         vararginoptions(varargin,{'regions','data','dataext','selection','prct','standardize','exclusion','fcn','param','prct'});
-        
+
         T=load(fullfile(regDir,['reg_data_' dataext '.mat']));
-        
+
         S=[];
         for s=1:max(T.SN)
             E=load(fullfile(glmDir, subj_name{s},'SPM_info.mat'));
@@ -1610,7 +1610,7 @@ switch(what)
                     otherwise
                         indx=find(indicator);
                 end;
-                
+
                 y=T.(data)(indx,:);
                 if (~isempty(indx))
                     D=feval(@df1_imana,fcn,y,E,getrow(T,indx),param{:});
@@ -1628,7 +1628,7 @@ switch(what)
         Type=[1:numregions 1:numregions];
         S.regSide=Side(S.region)';
         S.regType=Type(S.region)';
-        
+
         varargout={S};
     case 'ROI_decomposition'%____DF______________
         y=varargin{1};
@@ -1645,7 +1645,7 @@ switch(what)
             end
         end
         [C u res]= df1_decomp_struct(y(:,idx),I.digit(idx),I.stimType(idx),I.run(idx));
-        
+
         %Calculate spatial kernels on
         if (~isempty(u))
             borders=[0 2 3 4 6 8 10 12 16 20 ];
@@ -1663,13 +1663,13 @@ switch(what)
                 end;
                 [C.(['Corrbin_' name{k}]),C.Distbin]=ss1_spatial_kernel(T.xyz,U',borders);
             end;
-            
+
         end;
         varargout={C};
-    case 'ROI_distance'                  % Do extraction of time series to LDA-t values 
+    case 'ROI_distance'                  % Do extraction of time series to LDA-t values
         % T=df1_imana('ROI_distance',[1:11]);
         % save('reg_distance_raw.mat','-struct','T');
-        
+
         selection='none';
         fcn='stats';
         prct=0;
@@ -1679,7 +1679,7 @@ switch(what)
         Act = load(fullfile(regDir,'reg_data_8.mat'));
         sn=varargin{1};
         T=[];
-        
+
         for s=sn
             glmDirSubj=fullfile([glmDir], subj_name{s});
             cd(fullfile(glmDirSubj));
@@ -1687,8 +1687,8 @@ switch(what)
             D=load(fullfile(glmDir, subj_name{s},'SPM_info.mat'));
             load(fullfile(regDir,[subj_name{s} '_regions.mat']));
             SPM = spmj_move_rawdata(SPM,fullfile(baseDir,'imaging_data', subj_name{s}));
-            
-            % Get and move the raw data files 
+
+            % Get and move the raw data files
             raw_data=SPM.xY.P; % Get regions
             Raw={};
             for i=1:size(raw_data,1)
@@ -1697,8 +1697,8 @@ switch(what)
                 Raw{i}=fullfile(baseDir,'imaging_data',subj_name{s},[name ext num]);
             end;
             V=spm_vol(char(Raw));
-            
-            % Loop over the possile regions 
+
+            % Loop over the possile regions
             for r=regions
                 indx=(Act.SN==s & Act.regNum==r);
                 M=mean(Act.handAct(indx,1:2),2)./sqrt(Act.ResMs(indx,:));
@@ -1706,15 +1706,15 @@ switch(what)
                 R{r}.data=R{r}.data(i(1:min(100,length(i))),:);
                 Ya = region_getdata(V,R{r});  % Data is N x P
                 P=size(Ya,2);
-                    
+
                 % Make the two contrast matrices:
                 C1=indicatorMatrix('allpairs_p',(double(D.hand==0 & D.stimType==0) .* D.digit));
                 C2=indicatorMatrix('allpairs_p',(double(D.hand==1 & D.stimType==0) .* D.digit));
                 C3=indicatorMatrix('allpairs_p',(double(D.hand==1 & D.stimType==1) .* D.digit));
-                    
+
                 [dist,~,~,conw]=distance_ldt_spm(Ya,SPM,[C1 C2 C3]',D.run','C0',indicatorMatrix('identity',D.run));
-                c=mean(conw)/P; 
-                
+                c=mean(conw)/P;
+
                 % end;
                 vec=[1;1;1];
                 S.SN=s*vec;
@@ -1722,60 +1722,60 @@ switch(what)
                 S.hand=[1;2;2];
                 S.stimtype=[1;1;2];
                 S.group=subj_group(s)*vec;
-                
+
                 S.ldt=[dist(1:10);dist(11:20);dist(21:30)];
                 S.ldc=[c(1:10);c(11:20);c(21:30)];
                 T=addstruct(T,S);
                 fprintf('%d %d\n',s,r);
             end;
         end;
-                
-        Side=[ones(1,10) ones(1,10)*2]; 
+
+        Side=[ones(1,10) ones(1,10)*2];
         Type=[1:10 1:10];
         T.regSide=Side(T.region)';
         T.regType=Type(T.region)';
-        save(fullfile(regDir,'reg_distance_raw_no_CB.mat','-struct','T')); 
+        save(fullfile(regDir,'reg_distance_raw_no_CB.mat','-struct','T'));
         varargout={T};
-    case 'ROI_distance_plot'                  % Plot distance values 
+    case 'ROI_distance_plot'                  % Plot distance values
         % df1_imana('ROI_distance_plot',1,'ldc');
         color={[0 0 1],[1 0 0],[0 0 1],[1 0 0]};
-        style={'-','-',':',':'}; 
-        D=load(fullfile(regDir,'reg_distance_raw.mat')); 
-        regType=varargin{1}; 
-        field=varargin{2}; 
-        HAND=[1 2 2]; 
-        STIMTYPE=[1 1 2]; 
-        plotname={'Left Motor','Right Motor','Right Sensory'}; 
-        
+        style={'-','-',':',':'};
+        D=load(fullfile(regDir,'reg_distance_raw.mat'));
+        regType=varargin{1};
+        field=varargin{2};
+        HAND=[1 2 2];
+        STIMTYPE=[1 1 2];
+        plotname={'Left Motor','Right Motor','Right Sensory'};
+
         set(gcf,'Name',regname{regType})
-        D=getrow(D,D.regType==regType); 
-        maxim=max(max(D.(field))); 
-        
-        for h=1:3 
-            for s=1:2 
+        D=getrow(D,D.regType==regType);
+        maxim=max(max(D.(field)));
+
+        for h=1:3
+            for s=1:2
 
                 subplot(2,3,h+(s-1)*3);
                 traceplot([1:10],D.(field),'split',[D.group],'leg',{'control','patient'},...
                     'subset',D.regType==regType & D.hand==HAND(h) & D.stimtype==STIMTYPE(h) & D.regSide==s,...
                     'linecolor',color,'patchcolor',color,'linestyle',style,'errorfcn','stderr');
-                
-                set(gca,'YLim',[-maxim/10 maxim*0.8]); 
+
+                set(gca,'YLim',[-maxim/10 maxim*0.8]);
                 if(s==1)
-                    title(plotname{h}); 
+                    title(plotname{h});
                 end;
                 if(h==1 & s==1)
-                    ylabel('Left Hemisphere'); 
-                end; 
+                    ylabel('Left Hemisphere');
+                end;
                 if(h==1 & s==2)
-                    ylabel('Right Hemisphere'); 
-                end; 
-                    
-            end; 
-        end; 
-        
+                    ylabel('Right Hemisphere');
+                end;
+
+            end;
+        end;
+
     case 'accstats_subspace'
         side={'L','R'};
-        
+
         y=varargin{1};
         D=varargin{2};
         T=varargin{3};
@@ -1783,7 +1783,7 @@ switch(what)
         c=D.digit';
         h=D.hand';
         [V,X]=lmva_randomsubspace(y,@df1_acc,'params',{D.digit',D.hand',D.stimType',D.run'},'num_iter',200,'size_subspace',sizeSubspace);
-        
+
         if (~isempty(X))
             accS=mean(X.acc);
             E.accLm=accS(1)';
@@ -1792,34 +1792,34 @@ switch(what)
             E.sizeSubspace=sizeSubspace;
         else
             E.accLm=[];
-            
+
         end;
         varargout={E};
     case 'distance_compare'%_____DF______________
-        
+
         color={[0 0 1],[1 0 0],[0 1 0]};
         normalize=0;
         var='dist_sub';
-        
+
         vararginoptions(varargin,{'normalize','var'});
-        
+
         field_dist={'dist_mahal_all','dist_all','dist_sub','dist_ldaT'};
         field_oth={'SN','hand','region','regSide','regType'};
-        
-        
+
+
         TD=load(fullfile(regDir,'reg_distance_comp.mat'));
         TDr=load(fullfile(regDir,'reg_distance_ldaT.mat'));
         TD.dist_ldaT=TDr.ldaT;
-        
+
         T1=load(fullfile('/Users/jdiedrichsen/Projects/FingerPattern/tendigit1/RegionOfInterest','reg_distance_comp.mat'));
         T1r=load(fullfile('/Users/jdiedrichsen/Projects/FingerPattern/tendigit1/RegionOfInterest','reg_distance_ldaT.mat'));
         T1.dist_ldaT=T1r.ldaT;
-        
+
         % Select contralateral Motor activity
         TD.hand=TD.hand+1; % Make hands 1,2: DO THIS IN GENERAL??
         TD=getrow(TD,TD.hand~=TD.regSide & TD.stimtype==0 & TDr.regType==6);
         T1=getrow(T1,T1.hand~=T1.regSide & T1.regType==6);
-        
+
         % wrangle the data into a new format: In general it may be useful
         % to have this type of structure
         for i=1:length(field_dist)
@@ -1828,7 +1828,7 @@ switch(what)
                 x=bsxfun(@rdivide,x,mean(x,2));
             end;
             TDa.(field_dist{i})=x (:);
-            
+
             x=T1.(field_dist{i}); % Unnormalized
             if (normalize)
                 x=bsxfun(@rdivide,x,mean(x,2));
@@ -1841,19 +1841,19 @@ switch(what)
         end;
         TDa.pair=kron([1:10]',ones(length(TD.SN),1));
         T1a.pair=kron([1:10]',ones(length(T1.SN),1));
-        
+
         T1a.group=ones(length(T1a.SN),1)*1; % Control from tendigit1
         TDa.group=subj_group(TDa.SN)+1; % 2:Pianists 3: Dystonics
-        
+
         T=addstruct(TDa,T1a);
-        
+
         for i=1:2
             subplot(1,2,i);
             lineplot(T.pair,T.(var),'split',[T.group],...
                 'catcol',1,...
                 'leg',{'TD1','musicians','dystonia'},'style_thickline','subset',T.hand==i);
         end;
-        
+
         set(gca,'XTickLabel',fingerPairs);
         varargout={T};
     case 'mva_decomp_figure' % This is Figure X
@@ -1868,7 +1868,7 @@ switch(what)
         % Sepate estimate for sensory and motor
         subplot(4,2,1);barplot(T.region,[T.Dvar_cs T.Dvar_cm]);ylabel('var_c');
         subplot(4,2,2);barplot(T.region,T.Dcov_c./(sqrt(T.Dvar_cs).*sqrt(T.Dvar_cm)));ylabel('cov_c/var_c');
-        
+
         subplot(4,2,3);barplot(T.region,[T.Dvar_fs T.Dvar_fm]);ylabel('var_f');
         subplot(4,2,4);barplot(T.region,T.Dcov_f./(sqrt(T.Dvar_fs).*sqrt(T.Dvar_fm)));ylabel('cov_f/var_f');
         subplot(4,2,5);barplot(T.region,[T.Dvar_bs T.Dvar_bm]);ylabel('var_b');
@@ -1946,7 +1946,7 @@ switch(what)
         set(gcf,'PaperPosition',[1 1 6 2]);
         wysiwyg;
         saveas(gcf, 'maxForce', 'jpg')
-        
+
     case 'make_alldat_IN2b'     % case for Anna behavioural analysis
         S=[];
         for i=1:length(subj_name)
@@ -2043,4 +2043,3 @@ err=sum((r-rp).^2);
 
 function rp=exp_pred(sigma,x); % Error under the exponential model(FWHM)
 rp=exp(-x.^2/(2*sigma.^2));
-

@@ -17,10 +17,14 @@ switch(styID)
     case 'default'
         colours     = {'lightgreen','green','lightblue','blue'};
         opt.display.ax          = 'normal';
-    case 'forcetrace'
-        colours     = {'blue','green','red','magenta','black'};
+    case 'forcetrace1'
+        colours     = {'blue'};
         opt.general.markertype  = 'none';
-        opt.display.ax          = 'square';
+        opt.display.ratio       = 'square';
+    case 'forcetrace2'
+        colours     = {'green','red'};
+        opt.general.markertype  = 'none';
+        opt.display.ratio       = 'square';        
     case 'logslope'
         colours     = {'lightgray'};
         opt.general.markertype  = 'o';

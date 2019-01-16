@@ -4,9 +4,9 @@ function varargout = df1_behavioural(what,varargin)
 
 % rootDir         = '/Volumes/ANNA/data/FingerPattern_dystonia/';
 % rootDir         = 'J:/data/FingerPattern_dystonia/';
-rootDir         = '/Volumes/External/data/FingerPattern_dystonia/';
+rootDir         = '/Volumes/Naveed/data/FingerPattern_dystonia/';
 % rootDir         = '/Users/naveed/Documents/data/FingerPattern_dystonia/';
-codeDir         = '~/Dropbox/Code/diedrichsenlab/project/FingerPattern_dystonia/';
+codeDir         = '~/Dropbox/Code/projects/FingerPattern_dystonia/';
 
 indiviDir       = [rootDir 'Individuation_EMG'];
 behDir          = [indiviDir '/data_raw'];
@@ -18,6 +18,8 @@ statsDir        = [analysisDir '/R'];
 style.file(fullfile(codeDir,'df_style.m'));
 style.use('default');
 
+% open science container file
+ost.load(fullfile(rootDir,'dystonia.ost'));
 
 %% Experimental Parameters
 ens_label       = {'1/2','1/3','1/4','1/5',...
@@ -49,11 +51,14 @@ switch (what)
     case 'run_BEH' % basic behavioural routine, subset of orginal Individj2b_subj/_trial
         %%  BUG : unless directly in d08 data_raw folder recalibrated force will not be used
         D = dload(fullfile(indiviDir,'data','subject_list.txt')); % This has 18 subjects listed (not s05 or s07 'rapid' individual task  - not currently for inclusion)
+        
         for i = 1:size(D.name,1);
             fprintf('%s\n',D.name{i});
             cd(fullfile(behDir,D.name{i}));
             Individjhu2b_subj_dystonia(D.name{i}, 0);
         end
+
+        % subject 6, block 3, trial 7
     case 'excl_extraBN' % 2 sujects had extra block numbers these are deleted in this condition
     
         clear all
@@ -560,6 +565,135 @@ switch (what)
         end;
         varargout = {S};
         save(fullfile(rootDir,'Individuation_EMG/analysis','ens_patternsimilarity.mat'),'-struct','S');
+    case 'ENS_patternSimilarityIndividual'        % individual version of patient/control similarity analysis
+        D = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
+
+        S = [];
+        for hand=1:2
+            Dc = getrow(D,D.group==1 & D.hand==hand);
+            
+            for i = unique(Dc.SubjN)'
+                isC     = getrow(Dc,Dc.SubjN==i);
+                notC    = getrow(Dc,Dc.SubjN~=i);
+
+                % control with left out control
+                Si.SubjN    = i;
+                Si.r        = corr(isC.ens',mean(notC.ens,1)');
+                Si.group    = 1;
+                Si.hand     = hand;
+                S           = addstruct(S,Si);
+
+                % patients with left out control
+                Dp = getrow(D,D.group==2 & D.hand==hand);
+                Si.SubjN    = Dp.SubjN;
+                Si.r        = corr(Dp.ens',mean(notC.ens,1)');
+                Si.group    = repmat(2,length(Dp.SubjN),1);
+                Si.hand     = repmat(hand,length(Dp.SubjN),1);
+                S           = addstruct(S,Si);
+            end;
+        end;
+        T = tapply(S,{'SubjN','group','hand'},{'r','mean(fisherz(x))'});
+        varargout = {T};
+        % save(fullfile(rootDir,'Individuation_EMG/analysis','ens_patternsimilarity.mat'),'-struct','S');        
+    case 'MM_patternSimilarityIndividual'        % individual version of patient/control similarity analysis
+        D = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
+
+        S = [];
+        for hand=1:2
+            Dc = getrow(D,D.group==1 & D.hand==hand);
+            
+            for i = unique(Dc.SubjN)'
+                isC     = getrow(Dc,Dc.SubjN==i);
+                notC    = getrow(Dc,Dc.SubjN~=i);
+
+                % control with left out control
+                Si.SubjN    = i;
+                Si.r        = corr(isC.mmFull',mean(notC.mmFull,1)');
+                Si.group    = 1;
+                Si.hand     = hand;
+                S           = addstruct(S,Si);
+
+                % patients with left out control
+                Dp = getrow(D,D.group==2 & D.hand==hand);
+                Si.SubjN    = Dp.SubjN;
+                Si.r        = corr(Dp.mmFull',mean(notC.mmFull,1)');
+                Si.group    = repmat(2,length(Dp.SubjN),1);
+                Si.hand     = repmat(hand,length(Dp.SubjN),1);
+                S           = addstruct(S,Si);
+            end;
+        end;
+        T = tapply(S,{'SubjN','group','hand'},{'r','mean(fisherz(x))'});
+        varargout = {T};
+        % save(fullfile(rootDir,'Individuation_EMG/analysis','ens_patternsimilarity.mat'),'-struct','S');        
+    case 'ENS_MM_pattern_similarity'
+        D = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
+        D = getrow(D,ismember(D.handLabel,[2 4]));
+
+        style.use('group_smallmarker');        
+
+        % 0. plot trace plot for enslaving and mirroring patterns
+        plt.subplot(2,3,[1 2]);
+        plt.trace([],D.ens,'split',D.group);    % plot enslaving across groups
+        plt.set(gca,'xtick',1:20,'ytick',[-5:1:-1],...
+                    'yticklabel',round(exp([-5:1:-1]),3),'ratio','normal','xtick',1:20);
+        plt.legend('northwest',{'healthy musicians (RH)','musicians'' with dystonia'});
+        plt.labels([],'enslaved forces (N per 1N)','Enslaving pattern','A');
+        ylim([-4.7 -2]);
+
+        plt.subplot(2,3,[4 5]);
+        plt.trace([],D.mmFull,'split',D.group);    % plot enslaving across groups
+        plt.set(gca,'xtick',1:20,'ytick',[-7:1:-3],...
+                    'yticklabel',round(exp([-7:1:-3]),3),'ratio','normal','xtick',1:25);
+        plt.legend('northwest',{'healthy musicians (RH)','musicians'' with dystonia'});        
+        plt.labels([],'mirrored forces (N per 1N)','Mirroring pattern','B');
+        ylim([-6.6 -4]);
+
+        % 1. plot correlation between patients and controls
+        E = df1_behavioural('ENS_patternSimilarityIndividual');
+        M = df1_behavioural('MM_patternSimilarityIndividual');
+        E = getrow(E,E.hand==2);    % right hand moving
+        M = getrow(M,M.hand==2);    % right hand moving
+
+        E.type = ones(length(E.SubjN),1);
+        M.type = ones(length(M.SubjN),1) + 1;
+        S = addstruct(E,M);
+
+        style.use('group_smallmarker');        
+
+        plt.subplot(2,3,[3 6]);
+        plt.line(S.type,S.r,'split',S.group,'plotfcn','fisherinv(mean(x))');
+        ylim([0.3 0.9]);
+        plt.set('ylim',[0.3 0.9],'ratio','normal','xticklabel',{'enslaving','mirroring'});
+        plt.labels([],'Pearson''s r','Pattern similarity','C');        
+
+        % 3. save figure
+        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x2');  
+
+    case 'STATS_ens_pattern_similarity'
+        % 1. get enslaving pattern correlations between patients and controls
+        E = df1_behavioural('ENS_patternSimilarityIndividual');
+        E = getrow(E,E.hand==2);    % right hand moving
+
+        % average correlation between enslaving patterns for patients and controls
+        x = pivottable(E.SubjN,E.group,E.r,'mean');
+        fprintf('Enslaving pattern for patient correlation with control: %1.3f\n\n',fisherinv(nanmean(x(:,2))))
+
+        % enslaving patterns for patients tested against controls
+        fprintf('Patient versus control:\n');
+        ttest(x(:,1),x(:,2),2,'independent');
+
+    case 'STATS_mm_pattern_similarity'
+        % 1. get mirroring pattern correlations between patients and controls
+        M = df1_behavioural('MM_patternSimilarityIndividual');
+        M = getrow(M,M.hand==2);    % right hand moving
+
+        % average correlation between mirroring patterns for patients and controls
+        x = pivottable(M.SubjN,M.group,M.r,'mean');
+
+        % mirroring patterns for patients tested against controls
+        fprintf('Patient versus control:\n');
+        ttest(x(:,1),x(:,2),2,'independent');
+
     case 'ENS_dysIndivid'
         D = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
         D = getrow(D,D.hand==2);    % right hand, both groups
@@ -706,16 +840,38 @@ switch (what)
         save_figure(gcf,fullfile(figureDir,sprintf('%s.pdf',what)),'style','brain_2row');                      
               
     case 'FIG_forceTrace'
-        D = load(fullfile(figureDir,'forceTrace.mat'));
-        D.Force = bsxfun(@minus,D.Force,D.Force(1,:));
-        leg = {'thumb','index','middle','ring','little'};
+
+        D = load(fullfile(analysisDir,'ens_mm_force_trace.mat'));
+
+        % cut data frame for when participant moved
+        D.Force = D.Force(D.I2:D.I5,:);
+        D.Force = bsxfun(@minus,D.Force,D.Force(1,:));        
+
+        % force traces for left (active) and right (passive) hands
+        %   dystonia d07 pressed with left thumb, at target force level of 0.75
+        actF    = D.Force(:,1)';        
+        passF   = D.Force(:,[5 9])';
+
+        dt  = 0.05;
+        t   = [1:1:length(actF)] * dt;
+
+        % plot exemplary force traces for active, enslaving and mirrored forces
         
-        style.use('forcetrace');
-        plt.subplot(131);
-        plt.trace(D.t',D.Force(:,6:10)','split',[1:5]','leg',leg,'leglocation','northwest');
-        plt.labels('time (s)','Force (N)','force trajectory','B');
-        plt.set(gca,'ylim',[-0.5 14],'xlim',[0 6]);
-        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'style','1x2');        
+        style.use('forcetrace1');
+        plt.subplot(141);
+        plt.trace(t,actF,'leg',{'left thumb'},'leglocation','northwest');
+        plt.labels('time (s)','Force (N)','Applied force','B');
+        plt.set('ylim',[0 11]);
+
+
+        style.use('forcetrace2');
+        plt.subplot(142);
+        plt.trace(t,passF,'split',[1;2],'leg',{'left little','right ring'},'leglocation','northwest');
+        plt.labels('time (s)','Force (N)','Enslaved and mirrored forces','C');
+        plt.set('ylim',[0 1.3]);
+
+        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x2');        
+
     case 'FIG_logslope'
         D = load(fullfile(figureDir,'logslope.mat'));
         
@@ -728,14 +884,10 @@ switch (what)
     case 'FIG_EnsDegree'
         D = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
         
-        plt.subplot(131);
         style.use('group_smallmarker');        
         plt.line(D.hand,mean(D.ens,2),'split',D.group,...
                                       'leglocation','southwest','leg',{'non-dystonic','dystonic'});
 
-        plt.set(gca,'xticklabel',{'LH','RH'},'ytick',-4:0.2:-3,...
-                                                       'yticklabel',round(exp(-4:0.2:-3),3));
-        plt.labels([],{'enslaving','(N per 1N force)'},'Enslaving','A');
     case 'FIG_mvc'
         D = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
         
@@ -794,14 +946,9 @@ switch (what)
     case 'FIG_MMDegree'
         D = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
         
-        plt.subplot(133);
         style.use('group_smallmarker');        
         plt.line(D.hand,mean(D.mmFull,2),'split',D.group,...
                                       'leglocation','southwest','leg',{'non-dystonic','dystonic'});
-
-        plt.set(gca,'xticklabel',{'RH','LH'},'ylim',[-5.4 -4.4],'ytick',[-5.4:0.4:-4],...
-                                             'yticklabel',round(exp([-5.4:0.4:-4]),3));
-        plt.labels([],{'mirroring','(N per 1N force)'},'mirroring','A');    
 
         
     case 'PLOT_dysIndividRel'
@@ -820,11 +967,22 @@ switch (what)
         plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'0.75x2');        
         
     case 'PLOT_EnslavingGroup'
-        plt.figure;
+        plt.subplot(121);
         df1_behavioural('FIG_EnsDegree');
-        df1_behavioural('FIG_mvc');
+        plt.set(gca,'xticklabel',{'LH','RH'},'ytick',[-5:0.5:-3],...
+                                     'yticklabel',round(exp([-5:0.5:-3]),3),'ratio','normal','yprecision','%1.3f');
+        
+        plt.subplot(122);
         df1_behavioural('FIG_MMDegree');
-        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'style','1x2');          
+        plt.set(gca,'xticklabel',{'LH','RH'},'ytick',[-5:0.5:-3],...
+                                     'yticklabel',round(exp([-5:0.5:-3]),3),'ratio','normal','yprecision','%1.3f');
+
+        plt.match('y');
+        plt.labels([],{'forces in uninstructed fingers','(N per 1N force)'},'Enslaved','A',121);                                 
+        plt.labels([],{'forces in uninstructed fingers','(N per 1N force)'},'Mirrored','B',122);                                 
+
+        anot.hide_axis('y');
+        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x2');          
     case 'PLOT_EnslavingPatterns'
         df1_behavioural('FIG_patterns');
         plt.subplot(241);
@@ -838,7 +996,57 @@ switch (what)
         plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'2x2');        
     case 'PLOT_Mirroring'
         df1_behavioural('FIG_MMDegree');
-        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x1');        
+        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x1');    
+
+    case 'STATS_enslaving'
+        % average enslaving across hands/group
+        clear D
+        D   = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
+        x   = pivottable(D.SubjN,D.handLabel,mean(D.ens,2),'mean');
+        x   = exp(nanmean(x,1));
+        fprintf('Average enslaving across hands/group\n');
+        fprintf('Control (LH): %1.3f\nControl (RH): %1.3f\nPatient (LH): %1.3f\nPatient (RH): %1.3f\n\n',x(1),x(2),x(3),x(4));
+
+        % control vs patient (right hand)
+        clear D x
+        D   = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
+        x   = pivottable(D.SubjN,D.handLabel,mean(D.ens,2),'mean');
+        fprintf('control vs patient (RH)\n');
+        ttest(x(:,2),x(:,4),2,'independent');
+        fprintf('\n');
+
+        % control vs patient (left hand)
+        clear D x
+        D   = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
+        x   = pivottable(D.SubjN,D.handLabel,mean(D.ens,2),'mean');
+        fprintf('control vs patient (LH)\n');
+        ttest(x(:,1),x(:,3),2,'independent');
+        fprintf('\n');
+
+    case 'STATS_mirroring'
+        % average mirroring across hands/group
+        clear D
+        D   = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
+        x   = pivottable(D.SubjN,D.handLabel,mean(D.mmFull,2),'mean');
+        x   = exp(nanmean(x,1));
+        fprintf('Average mirroring across hands/group\n');
+        fprintf('Control (LH): %1.3f\nControl (RH): %1.3f\nPatient (LH): %1.3f\nPatient (RH): %1.3f\n\n',x(1),x(2),x(3),x(4));
+
+        % control vs patient (in left hand)
+        clear D x
+        D   = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
+        x   = pivottable(D.SubjN,D.handLabel,mean(D.mmFull,2),'mean');
+        fprintf('control vs patient (in LH)\n');
+        ttest(x(:,1),x(:,3),2,'independent');
+        fprintf('\n');
+
+        % control vs patient (in right hand)
+        clear D x
+        D   = load(fullfile(analysisDir,'ens_alldat_Peak.mat'));
+        x   = pivottable(D.SubjN,D.handLabel,mean(D.mmFull,2),'mean');
+        fprintf('control vs patient (in RH)\n');
+        ttest(x(:,2),x(:,4),2,'independent');
+        fprintf('\n');        
     
     case 'STATS'        % compiles statistics for project to pdf
         d   = '/Users/naveed/Dropbox/Papers/2015/Dystonia';
