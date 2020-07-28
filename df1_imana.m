@@ -13,7 +13,7 @@ function varargout=df1_imana(what,varargin)
 % baseDir = '/Users/naveed/Documents/data/FingerPattern_dystonia';
 % baseDir = '/Volumes/External/data/FingerPattern_dystonia';
 % baseDir = '/Volumes/Naveed/data/FingerPattern_dystonia';
-baseDir = '/Volumes/Naveed/data/FingerPattern_dystonia';
+baseDir = '/Volumes/MotorControl/data/FingerPattern_dystonia'; 
 
 behaviourDir    = fullfile(baseDir, 'Behavioural_data');
 emgDir          = fullfile(baseDir, 'Individuation_EMG/data');
@@ -28,7 +28,7 @@ glmDir= fullfile(baseDir,glmName{1});
 analysisDir     = [baseDir '/analysis'];
 figureDir       = [baseDir '/Individuation_EMG/analysis/figures'];
 statsDir        = [analysisDir '/stats'];
-codeDir         = '~/Dropbox/Code/projects/FingerPattern_dystonia/';
+codeDir         = '~/Matlab/projects/project_dystonia/';
 
 colours     = {[0,0,0],[0.6 0.6 1],[0 0 1],[0.6 1 0.6],[0 1 0]};
 sty_grp     = colours([3,5]);
@@ -4804,7 +4804,11 @@ switch(what)
         plt.legend('southeast',{'controls','dystonic'});
         plt.set('xticklabel',{'S1','S1','M1','M1'});
         
-        keyboard;
+    case 'Fig_reliability' 
+        D = load(fullfile(regDir,'spatial_distances_splithalf.mat'));
+        for r=1:2 
+            for c=1:2 
+                
     
     
     case 'todonext'
