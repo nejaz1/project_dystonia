@@ -4804,17 +4804,62 @@ switch(what)
         plt.legend('southeast',{'controls','dystonic'});
         plt.set('xticklabel',{'S1','S1','M1','M1'});
         
-    case 'Fig_reliability' 
+    case 'Calc_reliability' % Calculate split-half reliability 
         D = load(fullfile(regDir,'spatial_distances_splithalf.mat'));
-        for r=1:2 
-            for c=1:2 
-                
-    
-    
-    case 'todonext'
-        % analyze split-half reliability of spatial distances
-        % analyze split-half reliability of rsa distances
-
+        R = load(fullfile(regDir,'reg_distance_raw_splithalf.mat'));
+        T=[]; 
+        for s=1:17 
+            for r=1:2 
+                for h=1:2 
+                    for c=1:2 
+                        for m=1:6 
+                            i1=find(D.sn==s & D.region==r & D.hand==h & D.condition==c & D.metric==m & D.type==1); 
+                            i2=find(D.sn==s & D.region==r & D.hand==h & D.condition==c & D.metric==m & D.type==2); 
+                            if (~isempty(i1))
+                                if length(i1)>1 
+                                      keyboard; % Must be an error
+                                end
+                                TT.sn=s
+                                TT.region = r; 
+                                TT.hand = h; 
+                                TT.condition = c; 
+                                TT.metric=m; 
+                                TT.k = D.k(i1); 
+                                TT.corr=corr(D.dist(i1,:)',D.dist(i2,:)'); 
+                                T=addstruct(T,TT); 
+                            end
+                        end
+                        i=find(R.SN==s & R.regType==r & R.hand==h-1 & R.stimtype==c-1 & R.regSide~=R.hand); 
+                        if (~isempty(i1))
+                            if length(i1)>1 
+                                keyboard; % Must be an error
+                            end 
+                            TT.sn=s;
+                            TT.region = r; 
+                            TT.hand = h; 
+                            TT.condition = c; 
+                            TT.metric=7; 
+                            TT.k = 0; 
+                            TT.corr=corr(R.dist1(i,:)',R.dist2(i,:)'); 
+                            T=addstruct(T,TT); 
+                        end
+                    end
+                end
+            end
+        end
+        save(fullfile(regDir,'reliability.mat'),'-struct','T');
+    case 'Fig_reliability' 
+        c=2;
+        T=load(fullfile(regDir,'reliability.mat'));
+        T.metricType=T.metric;
+        T.metricType(T.metric<6)=2;
+        T.metricType(T.metric==6)=1;
+        T.metricType(T.metric==7)=3;
+        for r=1:2
+            subplot(1,2,r); 
+            lineplot([T.metricType T.k],T.corr,'subset',T.region==r & ~isnan(T.corr) & T.condition==c,'style_thickline'); 
+            set(gca,'YLim',[0 1]);
+        end; 
     otherwise
         error('no such case!')
 end
