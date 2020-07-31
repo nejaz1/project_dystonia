@@ -28,7 +28,7 @@ glmDir= fullfile(baseDir,glmName{1});
 analysisDir     = [baseDir '/analysis'];
 figureDir       = [baseDir '/Individuation_EMG/analysis/figures'];
 statsDir        = [analysisDir '/stats'];
-codeDir         = '~/Matlab/projects/project_dystonia/';
+codeDir         = '~/Matlab/project/project_dystonia/';
 
 colours     = {[0,0,0],[0.6 0.6 1],[0 0 1],[0.6 1 0.6],[0 1 0]};
 sty_grp     = colours([3,5]);
@@ -1937,10 +1937,8 @@ switch(what)
         selection='none';
         fcn='stats';
         prct=0;
-        %         regions=[1 2 3 9 10    11 12 13 19 20];
         regions=[1 2 11 12];
         param={};
-        Act = load(fullfile(regDir,'reg_data_8.mat'));
         sn=varargin{1};
         T=[];
         
@@ -1963,13 +1961,6 @@ switch(what)
             
             % Loop over the possile regions
             for r=regions
-                indx=(Act.SN==s & Act.regNum==r);
-                
-                % Get the 200 most activated voxels in each region
-                % By magnitude of activation
-                M=mean(Act.psc(indx,1:2),2)./sqrt(Act.ResMs(indx,:));
-                [~,i]=sort(M,1,'descend');
-                R{r}.data=R{r}.data(i(1:min(200,length(i))),:);
                 
                 % Get the data and prewhiten
                 Y = region_getdata(V,R{r});  % Data is N x P
@@ -1993,7 +1984,6 @@ switch(what)
                 S.region=r*vec;
                 S.hand=[0;1;1];
                 S.stimtype=[0;0;1];
-                S.psc=[mean(Act.psc(indx,1));mean(Act.psc(indx,2));mean(Act.psc(indx,3))];
                 S.group=subj_group(s)*vec;
                 
                 T=addstruct(T,S);
@@ -2787,12 +2777,13 @@ switch(what)
         % saving results
         % save_figure(gcf,fullfile(figureDir,sprintf('%s.pdf',what)),'style','brain_3row');
         
-    case 'FIG_fingermaps_passive'
-        df1_imana('plot_fingerpatterns_passive',7,1);
-        df1_imana('plot_fingerpatterns_passive',9,2);
+    case 'FIG_fingermaps_passive'  % Maps for Figure 4 in paper
+        df1_imana('plot_fingerpatterns_passive',6,1);
+        df1_imana('plot_fingerpatterns_passive',8,2);
         df1_imana('plot_fingerpatterns_passive',14,3);
         df1_imana('plot_fingerpatterns_passive',15,4);
-        
+        f = gcf;
+        % saveas(f,'Fingermaps_passive.tif');
         
     case 'plot_fingerpatterns_ipsicontra'               % Makes a plot of all finger patterns
         sn=varargin{1};
@@ -2866,114 +2857,105 @@ switch(what)
         plot(vec);
         disp(corr(vec,'type','pearson'));
         varargout = {S};
+    case 'SPAT_calcmetric'  % This calculates the various spatial statistics
+        dat = varargin{1};
+        x = varargin{2};
+        y = varargin{3};
+        m = varargin{4};
+        k_const     = [0 0.05 0.1 0.2 0.4 0.8 1.6 3.2 10];
+        k       = k_const(m);
+        
+        switch(m)
+            case 1          % weighted mean
+                dat(dat<0)=0;
+                w       = dat/sum(dat);
+                X       = sum(w.*x);
+                Y       = sum(w.*y);
+            case {2,3,4,5,6,7,8}   % Softmax 0-1
+                w       = exp(k*dat);
+                % w(dat<0)= 0;
+                w       = w/sum(w);
+                X       = sum(w.*x);
+                Y       = sum(w.*y);
+            case 9
+                [~,idx] = max(dat);
+                X       = x(idx);
+                Y       = y(idx);
+        end;
+        varargout={X,Y,k};
     case 'SPAT_metrics2d'
         atlas       = 2;
-        roiType     = [1 2];
-        vararginoptions(varargin,{'atlas'});
+        roiType     = [1 2]; % Use subsection of M1 and S1 
+        isplot      = 1;
+        symbol      = {'kx','go','ko','ko','ko','ko','ko','ro','k*'};
+        vararginoptions(varargin,{'atlas','roiType','isplot'});
         
         S=[];
         hand  = [ones(1,5) 2*ones(1,10)];
         digit = repmat(1:5,1,3);
         condition  = [ones(1,10) 2*ones(1,5)];
-        for sn=1:length(subj_name)
-            for r=roiType
-                for h=1:2
+        
+        for h=1:2
+            switch(h)
+                case 2
+                    coord='rh.FLAT.coord';
+                    topo='rh.CUT.topo';
+                    xlims=[-15 15];
+                    ylims=[-10 20];
+                case 1
+                    coord='lh.FLAT.coord';
+                    topo='lh.CUT.topo';
+                    xlims=[-15 15];
+                    ylims=[-10 20];
+            end
+            groupDir    = [caretDir filesep atlasname{atlas}  filesep hemName{h} ];
+            border      = fullfile(caretDir,atlasname{atlas},hemName{h},['CS.border']);
+            paint       = fullfile(caretDir,atlasname{atlas},hemName{h},['ROI.paint']); % Use subsections of M1 / S1 
+            cd(groupDir);
+            C = caret_load(coord);
+            B=caret_load(border);
+            P=caret_load(paint);
+            
+            % Plot surface shape for the area
+            if (isplot)
+                subplot(4,5,16);
+                sshape=fullfile(caretDir,atlasname{atlas},hemName{h},[hem{h} '.surface_shape']);
+                M=caret_plotflatmap('data',sshape,'col',1,'border',B.Border,'topo',topo,'coord',coord,'xlims',xlims,'ylims',ylims);
+            end
+            
+            for sn=1:length(subj_name)
+                dataFile=fullfile(caretDir,[atlasA{atlas} subj_name{sn}],hemName{h},[subj_name{sn} '_finger.metric']);
+                data    = caret_load(dataFile);
+                for i=1:15
+                    % Plot the flatmap activation for all finger maps
+                    if (isplot)
+                        subplot(4,5,i);
+                        caret_plotflatmap('M',M,'col',i,'data',data,'cscale',[-6 12],...
+                            'border',B.Border,'topo',topo,'coord',coord);
+                    end
+                end
+                for r=roiType
                     fprintf('SN %d, REG %d, HEM %d\n',sn,r,h);
-                    
-                    groupDir    = [caretDir filesep atlasname{atlas}  filesep hemName{h} ];
-                    border      = fullfile(caretDir,atlasname{atlas},hemName{h},['CS.border']);
-                    paint       = fullfile(caretDir,atlasname{atlas},hemName{h},['ROI.paint']);
-                    cd(groupDir);
-                    
-                    switch(h)
-                        case 2
-                            coord='rh.FLAT.coord';
-                            topo='rh.CUT.topo';
-                            xlims=[-10 20];
-                            ylims=[-10 20];
-                        case 1
-                            coord='lh.FLAT.coord';
-                            topo='lh.CUT.topo';
-                            xlims=[-20 10];
-                            ylims=[-10 20];
-                    end;
-                    B=caret_load(border);
-                    P=caret_load(paint);
-                    
-                    dataFile=fullfile(caretDir,[atlasA{atlas} subj_name{sn}],hemName{h},[subj_name{sn} '_finger.metric']);
-                    sshape=fullfile(caretDir,atlasname{atlas},hemName{h},[hem{h} '.surface_shape']);
-                    
-                    subplot(4,5,16);
-                    M=caret_plotflatmap('col',2,'data',sshape,'col',1,'border',B.Border,'topo',topo,'coord',coord,'xlims',xlims,'ylims',ylims);
-                    
-                    % selecting only vertices that belong to the defined region
-                    % of interest
-                    data    = caret_load(dataFile);
-                    idxROI  = P.data==r;
-                    data.data(~idxROI,:)=nan;
+                    % Determine the vertices in the region of question
+                    idxROI  = P.data==r & ~isnan(sum(data.data,2));
+                    pNans = sum(P.data==r & isnan(sum(data.data,2)))/sum(P.data==r);  % Proportion of Vertices with Nans
                     
                     for i=1:15
-                        subplot(4,5,i);
-                        [M,d]=caret_plotflatmap('M',M,'col',i,'data',data,'cscale',[-6 12],...
-                            'border',B.Border,'topo',topo,'coord',coord);
-                        maxT(i)=max(d(:));
-                        
-                        % calculating 2d metrics
-                        for m=1:6
-                            switch(m)
-                                case 1          % peak activation
-                                    k       = 1;
-                                    [~,idx] = max(d);
-                                    X       = mean(M.X(:,idx));
-                                    Y       = mean(M.Y(:,idx));
-                                    hold on; patch(M.X(:,idx),M.Y(:,idx),'k'); hold off;
-                                case 2          % center of gravity (softmax, no negative values)
-                                    k       = 0.8;
-                                    idx     = d>0;
-                                    x       = d(idx);
-                                    X       = M.X(:,idx);
-                                    Y       = M.Y(:,idx);
-                                    w       = exp(k*x)./sum(exp(k*x));
-                                    X       = sum(mean(X,1).*w);
-                                    Y       = sum(mean(Y,1).*w);
-                                case 3          % center of gravity (softmax, no negative values)
-                                    k       = 0.6;
-                                    idx     = d>0;
-                                    x       = d(idx);
-                                    X       = M.X(:,idx);
-                                    Y       = M.Y(:,idx);
-                                    w       = exp(k*x)./sum(exp(k*x));
-                                    X       = sum(mean(X,1).*w);
-                                    Y       = sum(mean(Y,1).*w);
-                                case 4          % center of gravity (softmax, no negative values)
-                                    k       = 0.4;
-                                    idx     = d>0;
-                                    x       = d(idx);
-                                    X       = M.X(:,idx);
-                                    Y       = M.Y(:,idx);
-                                    w       = exp(k*x)./sum(exp(k*x));
-                                    X       = sum(mean(X,1).*w);
-                                    Y       = sum(mean(Y,1).*w);
-                                case 5          % center of gravity (softmax, no negative values)
-                                    k       = 0.2;
-                                    idx     = d>0;
-                                    x       = d(idx);
-                                    X       = M.X(:,idx);
-                                    Y       = M.Y(:,idx);
-                                    w       = exp(k*x)./sum(exp(k*x));
-                                    X       = sum(mean(X,1).*w);
-                                    Y       = sum(mean(Y,1).*w);
-                                case 6          % weighted mean
-                                    k       = 0;
-                                    idx     = d>0;
-                                    x       = d(idx);
-                                    X       = M.X(:,idx);
-                                    Y       = M.Y(:,idx);
-                                    X       = mean(X,1);
-                                    Y       = mean(Y,1);
-                                    X       = sum(x.*X)/sum(x);
-                                    Y       = sum(x.*Y)/sum(Y);
-                            end;
+                        % Determine the activations and the coordinates
+                        dat = data.data(idxROI,i);
+                        x = C.data(idxROI,1);
+                        y = C.data(idxROI,2);
+                        % Now try out different method to determine the
+                        % COG:
+                        for m=1:9
+                            [X,Y,k]=df1_imana('SPAT_calcmetric',dat,x,y,m);
+                            % Add the symbol
+                            if (isplot)
+                                subplot(4,5,i);
+                                hold on;
+                                plot(X,Y,symbol{m});
+                                hold off;
+                            end
                             
                             % Saving data for each subject/hemisphere/hand
                             Si.x        = X;
@@ -2985,30 +2967,27 @@ switch(what)
                             Si.condition= condition(i);
                             Si.metric   = m;
                             Si.k        = k;
+                            Si.pNans    = pNans;
                             Si.sn       = sn;
                             Si.group    = subj_group(sn);
                             Si.subjname = subj_name(sn);
                             S           = addstruct(S,Si);
-                        end;
-                    end;
-                    mm=max(maxT);
-                    for i=1:15
-                        subplot(4,5,i);
-                        caxis([-mm/2 mm]);
-                    end;
-                    %keyboard;
+                        end
+                    end
+                end
+                if (isplot)
+                    keyboard;
                 end;
-            end;
-        end;
+            end
+        end
+        
         varargout = {S};
         save(fullfile(regDir,'spatial_CoG.mat'),'-struct','S');
-        
     case 'SPAT_metrics2d_splithalf'
         atlas       = 2;
         roiType     = [1 2];
-        isplot      = 1; 
-        k_const     = [0 0 0.2 0.4 0.6 0.8 1.0 2 10]; 
-        symbol      = {'s','o','o','o','o','o','o','o','o','*'};
+        isplot      = 1;
+        symbol      = {'kx','go','ko','ko','ko','ko','ko','ro','k*'};
         vararginoptions(varargin,{'atlas','roiType','isplot'});
         
         S=[];
@@ -3023,77 +3002,62 @@ switch(what)
                 case 2
                     coord='rh.FLAT.coord';
                     topo='rh.CUT.topo';
-                    xlims=[-10 20];
+                    xlims=[-15 15];
                     ylims=[-10 20];
                 case 1
                     coord='lh.FLAT.coord';
                     topo='lh.CUT.topo';
-                    xlims=[-20 10];
+                    xlims=[-15 15];
                     ylims=[-10 20];
-            end 
+            end
             groupDir    = [caretDir filesep atlasname{atlas}  filesep hemName{h} ];
             border      = fullfile(caretDir,atlasname{atlas},hemName{h},['CS.border']);
             paint       = fullfile(caretDir,atlasname{atlas},hemName{h},['ROI.paint']);
             cd(groupDir);
-            C = caret_load(coord); 
+            C = caret_load(coord);
             B=caret_load(border);
             P=caret_load(paint);
-
+            
             % Plot surface shape for the area
             if (isplot)
                 subplot(4,5,16);
                 sshape=fullfile(caretDir,atlasname{atlas},hemName{h},[hem{h} '.surface_shape']);
                 M=caret_plotflatmap('col',2,'data',sshape,'col',1,'border',B.Border,'topo',topo,'coord',coord,'xlims',xlims,'ylims',ylims);
-            end 
+            end
             
-            for sn=1:2 % length(subj_name)
+            for sn=1:length(subj_name)
                 for ty=1:2
                     dataFile=fullfile(caretDir,[atlasA{atlas} subj_name{sn}],hemName{h},[subj_name{sn} '_finger_' type{ty} '.metric']);
                     data    = caret_load(dataFile);
                     for i=1:15
-                        % Plot the flatmap activation for all finger maps 
-                        if (isplot) 
-                            subplot(4,5,i);     
+                        % Plot the flatmap activation for all finger maps
+                        if (isplot)
+                            subplot(4,5,i);
                             caret_plotflatmap('M',M,'col',i,'data',data,'cscale',[-6 12],...
                                 'border',B.Border,'topo',topo,'coord',coord);
-                        end 
+                        end
                     end
                     for r=roiType
                         fprintf('Type %d, SN %d, REG %d, HEM %d\n',ty,sn,r,h);
-                        % Determine the vertices in the region of question 
-                        idxROI  = P.data==r & C.data(:,1)>xlims(1) & C.data(:,1)<xlims(2)& C.data(:,2)>ylims(1) & C.data(:,2)<ylims(2);
+                        % Determine the vertices in the region of question
+                        idxROI  = P.data==r & ~isnan(sum(data.data,2));
+                        pNans = sum(P.data==r & isnan(sum(data.data,2)))/sum(P.data==r);  % Proportion of Vertices with Nans
                         
                         for i=1:15
                             % Determine the activations and the coordinates
-                            dat = data.data(idxROI,i); 
-                            x = C.data(idxROI,1); 
-                            y = C.data(idxROI,2); 
+                            dat = data.data(idxROI,i);
+                            x = C.data(idxROI,1);
+                            y = C.data(idxROI,2);
                             % Now try out different method to determine the
-                            % COG: 
+                            % COG:
                             for m=1:9
-                                k       = k_const(i);
-
-                                switch(m)
-                                    case 1          % weighted mean
-                                        dat(dat<0)=0;
-                                        w       = dat/sum(dat)
-                                        X       = sum(w.*X);
-                                        Y       = sum(w.*Y);
-                                    case {2,3,4,5,6,7,8}   % Softmax 0-1
-                                        w       = exp(k*dat)./sum(exp(k*dat));
-                                        X       = sum(w.*X);
-                                        Y       = sum(w.*Y);
-                                    case 9 
-                                        [~,idx] = max(dat);
-                                        X       = x(idx);
-                                        Y       = y(idx);
-                                end;
-                                % Add the symbol 
-                                if (isplot) 
-                                    subplot(4,5,i);  
-                                    hold on; 
-                                    plot(X,Y,symbol{i});
-                                    hold off; 
+                                [X,Y,k]=df1_imana('SPAT_calcmetric',dat,x,y,m);
+                                % Add the symbol
+                                if (isplot)
+                                    subplot(4,5,i);
+                                    hold on;
+                                    plot(X,Y,symbol{m});
+                                    hold off;
                                 end
                                 
                                 % Saving data for each subject/hemisphere/hand
@@ -3107,12 +3071,16 @@ switch(what)
                                 Si.metric   = m;
                                 Si.k        = k;
                                 Si.type     = ty;
+                                Si.pNans    = pNans;
                                 Si.sn       = sn;
                                 Si.group    = subj_group(sn);
                                 Si.subjname = subj_name(sn);
                                 S           = addstruct(S,Si);
                             end
                         end
+                        if (isplot)
+                            keyboard;
+                        end;
                     end
                 end
             end
@@ -3120,246 +3088,75 @@ switch(what)
         
         varargout = {S};
         save(fullfile(regDir,['spatial_CoG_splithalf.mat']),'-struct','S');
-    case 'SPAT_metrics2d_splithalf_buggy'
+    case 'SPAT_metrics2d_plot'
         atlas       = 2;
-        roiType     = [1 2];
-        vararginoptions(varargin,{'atlas','type'});
+        roiType     = 3;  % BA 3 
+        h           = 1;
+        sn          = 7;
+        condition   = 2;
+        hand        = 2;
+        symbol      = {'kx','go','ko','ko','ko','ko','ko','ro','k*'};
+        vararginoptions(varargin,{'atlas','roiType','h','condition','hand','sn'});
         
+        figure(1);
+        set(gcf,'PaperPosition',[2 2 12 2]);
+        wysiwyg;
         S=[];
-        hand  = [ones(1,5) 2*ones(1,10)];
-        digit = repmat(1:5,1,3);
-        condition  = [ones(1,10) 2*ones(1,5)];
+        handV  = [ones(1,5) 2*ones(1,10)];
+        digitV = repmat(1:5,1,3);
+        conditionV  = [ones(1,10) 2*ones(1,5)];
+        switch(h)
+            case 2
+                coord='rh.FLAT.coord';
+                topo='rh.CUT.topo';
+                xlims=[-10 5];
+                ylims=[-5 10];
+            case 1
+                coord='lh.FLAT.coord';
+                topo='lh.CUT.topo';
+                xlims=[-5 10];
+                ylims=[-5 10];
+        end
+        groupDir    = [caretDir filesep atlasname{atlas}  filesep hemName{h} ];
+        border      = fullfile(caretDir,atlasname{atlas},hemName{h},['CS.border']);
+        paint       = fullfile(caretDir,atlasname{atlas},hemName{h},['ROIsm.paint']);
+        cd(groupDir);
+        C = caret_load(coord);
+        B=caret_load(border);
+        P=caret_load(paint);
         
-        type = {'odd','even'};
+        dataFile=fullfile(caretDir,[atlasA{atlas} subj_name{sn}],hemName{h},[subj_name{sn} '_finger.metric']);
+        data    = caret_load(dataFile);
+        axis equal;
         
-        for ty=1:2
-            for sn=1:length(subj_name)
-                for r=roiType
-                    for h=1:2
-                        fprintf('Type %d, SN %d, REG %d, HEM %d\n',ty,sn,r,h);
-                        
-                        groupDir    = [caretDir filesep atlasname{atlas}  filesep hemName{h} ];
-                        border      = fullfile(caretDir,atlasname{atlas},hemName{h},['CS.border']);
-                        paint       = fullfile(caretDir,atlasname{atlas},hemName{h},['ROI.paint']);
-                        cd(groupDir);
-                        
-                        switch(h)
-                            case 2
-                                coord='rh.FLAT.coord';
-                                topo='rh.CUT.topo';
-                                xlims=[-10 20];
-                                ylims=[-10 20];
-                            case 1
-                                coord='lh.FLAT.coord';
-                                topo='lh.CUT.topo';
-                                xlims=[-20 10];
-                                ylims=[-10 20];
-                        end;
-                        B=caret_load(border);
-                        P=caret_load(paint);
-                        
-                        dataFile=fullfile(caretDir,[atlasA{atlas} subj_name{sn}],hemName{h},[subj_name{sn} '_finger_' type{ty} '.metric']);
-                        sshape=fullfile(caretDir,atlasname{atlas},hemName{h},[hem{h} '.surface_shape']);
-                        
-                        subplot(4,5,16);
-                        M=caret_plotflatmap('col',2,'data',sshape,'col',1,'border',B.Border,'topo',topo,'coord',coord,'xlims',xlims,'ylims',ylims);
-                        
-                        % selecting only vertices that belong to the defined region
-                        % of interest
-                        data    = caret_load(dataFile);
-                        idxROI  = P.data==r;
-                        data.data(~idxROI,:)=nan;
-                        
-                        MM  = cell(1,15);
-                        X   = cell(1,15);
-                        Y   = cell(1,15);
-                        dd  = cell(1,15);
-                        % 0. get the finger t-maps
-                        for i=1:15
-                            subplot(4,5,i);
-                            [MM{i},dd{i}]=caret_plotflatmap('M',M,'col',i,'data',data,'cscale',[-6 12],...
-                                'border',B.Border,'topo',topo,'coord',coord);
-                            XX{i} = mean(MM{1}.X,1)';
-                            YY{i} = mean(MM{1}.Y,1)';
-                        end;
-                        
-                        % 1. calculate map-smoothing metrics
-                        for i=1:15
-                            Xi = XX{i};
-                            Yi = YY{i};
-                            d = dd{i};
-                            
-                            % calculating 2d metrics
-                            for m=1:6
-                                switch(m)
-                                    case 1          % peak activation
-                                        k       = 1;
-                                        [~,idx] = max(d);
-                                        X       = Xi(idx);
-                                        Y       = Yi(idx);
-                                    case 2          % center of gravity (softmax, no negative values)
-                                        k       = 0.8;
-                                        idx     = d>0;
-                                        x       = d(idx);
-                                        X       = Xi(idx);
-                                        Y       = Yi(idx);
-                                        w       = exp(k*x)./sum(exp(k*x));
-                                        X       = sum(mean(X,1).*w);
-                                        Y       = sum(mean(Y,1).*w);
-                                    case 3          % center of gravity (softmax, no negative values)
-                                        k       = 0.6;
-                                        idx     = d>0;
-                                        x       = d(idx);
-                                        X       = Xi(idx);
-                                        Y       = Yi(idx);
-                                        w       = exp(k*x)./sum(exp(k*x));
-                                        X       = sum(mean(X,1).*w);
-                                        Y       = sum(mean(Y,1).*w);
-                                    case 4          % center of gravity (softmax, no negative values)
-                                        k       = 0.4;
-                                        idx     = d>0;
-                                        x       = d(idx);
-                                        X       = Xi(idx);
-                                        Y       = Yi(idx);
-                                        w       = exp(k*x)./sum(exp(k*x));
-                                        X       = sum(mean(X,1).*w);
-                                        Y       = sum(mean(Y,1).*w);
-                                    case 5          % center of gravity (softmax, no negative values)
-                                        k       = 0.2;
-                                        idx     = d>0;
-                                        x       = d(idx);
-                                        X       = Xi(idx);
-                                        Y       = Yi(idx);
-                                        w       = exp(k*x)./sum(exp(k*x));
-                                        X       = sum(mean(X,1).*w);
-                                        Y       = sum(mean(Y,1).*w);
-                                    case 6          % weighted mean
-                                        k       = 0;
-                                        idx     = d>0;
-                                        x       = d(idx);
-                                        X       = Xi(idx);
-                                        Y       = Yi(idx);
-                                        X       = sum(x.*X')/sum(x);
-                                        Y       = sum(x.*Y')/sum(x);
-                                end;
-                                
-                                % Saving data for each subject/hemisphere/hand
-                                Si.x        = X;
-                                Si.y        = Y;
-                                Si.regSide  = h;
-                                Si.region   = r;
-                                Si.hand     = hand(i);
-                                Si.digit    = digit(i);
-                                Si.condition= condition(i);
-                                Si.metric   = m;
-                                Si.k        = k;
-                                Si.sn       = sn;
-                                Si.group    = subj_group(sn);
-                                Si.type     = ty;
-                                Si.subjname = subj_name(sn);
-                                S           = addstruct(S,Si);
-                            end;
-                        end;
-                        
-                        
-                        % % 2. calculate voxel-smoothing metrics
-                        % for c = unique(condition(hand==h))
-                        %     Xi  = cat(2,[],XX{hand==h & condition==c});
-                        %     Yi  = cat(2,[],YY{hand==h & condition==c});
-                        %     d   = cat(1,[],dd{hand==h & condition==c});
-                        %     for m=7:10
-                        %         switch(m)
-                        %             case 7          % center of gravity (softmax, no negative values)
-                        %                 k       = 0.8;
-                        %                 idx     = all(d>0,1);
-                        %                 x       = d(:,idx);
-                        %                 X       = Xi(idx,:);
-                        %                 Y       = Yi(idx,:);
-                        %
-                        %                 w       = bsxfun(@rdivide,exp(k*x),sum(exp(k*x),1));
-                        %                 X       = sum(X.*w',1)./sum(w,2)';
-                        %                 Y       = sum(Y.*w',1)./sum(w,2)';
-                        %             case 8          % center of gravity (softmax, no negative values)
-                        %                 k       = 0.6;
-                        %                 idx     = all(d>0,1);
-                        %                 x       = d(:,idx);
-                        %                 X       = Xi(idx,:);
-                        %                 Y       = Yi(idx,:);
-                        %
-                        %                 w       = bsxfun(@rdivide,exp(k*x),sum(exp(k*x),1));
-                        %                 X       = sum(X.*w',1)./sum(w,2)';
-                        %                 Y       = sum(Y.*w',1)./sum(w,2)';
-                        %             case 9          % center of gravity (softmax, no negative values)
-                        %                 k       = 0.4;
-                        %                 idx     = all(d>0,1);
-                        %                 x       = d(:,idx);
-                        %                 X       = Xi(idx,:);
-                        %                 Y       = Yi(idx,:);
-                        %
-                        %                 w       = bsxfun(@rdivide,exp(k*x),sum(exp(k*x),1));
-                        %                 X       = sum(X.*w',1)./sum(w,2)';
-                        %                 Y       = sum(Y.*w',1)./sum(w,2)';
-                        %             case 10          % center of gravity (softmax, no negative values)
-                        %                 k       = 0.2;
-                        %                 idx     = all(d>0,1);
-                        %                 x       = d(:,idx);
-                        %                 X       = Xi(idx,:);
-                        %                 Y       = Yi(idx,:);
-                        %
-                        %                 w       = bsxfun(@rdivide,exp(k*x),sum(exp(k*x),1));
-                        %                 X       = sum(X.*w',1)./sum(w,2)';
-                        %                 Y       = sum(Y.*w',1)./sum(w,2)';
-                        %         end;
-                        %
-                        %         % Saving data for each subject/hemisphere/hand
-                        %         v           = ones(5,1);
-                        %         Si.x        = X';
-                        %         Si.y        = Y';
-                        %         Si.regSide  = h * v;
-                        %         Si.region   = r * v;
-                        %         Si.hand     = hand(i) * v;
-                        %         Si.digit    = [1:5]';
-                        %         Si.condition= condition(i) * v;
-                        %         Si.metric   = m * v ;
-                        %         Si.k        = k * v;
-                        %         Si.sn       = sn * v;
-                        %         Si.group    = subj_group(sn) * v;
-                        %         Si.type     = ty * v;
-                        %         Si.subjname = repmat(subj_name(sn),5,1);
-                        %         S           = addstruct(S,Si);
-                        %     end;
-                        % end;
-                        %
-                        %
-                        % mm=max(maxT);
-                        % for i=1:15
-                        %     subplot(4,5,i);
-                        %     caxis([-mm/2 mm]);
-                        % end;
-                        % keyboard;
-                    end;
-                end;
-            end;
+        M = caret_plotflatmap('coord',coord,'topo',topo,'col',1,'data',data,'cscale',[-6 12],...
+            'border',B.Border,'xlims',xlims,'ylims',ylims);
+        % Determine the vertices in the region of question
+        idxROI  = P.data==roiType & C.data(:,1)>xlims(1) & C.data(:,1)<xlims(2)& C.data(:,2)>ylims(1) & C.data(:,2)<ylims(2) & ~isnan(sum(data.data,2));
+        idxROI  = P.data==roiType & ~isnan(sum(data.data,2));
+        
+        for digit=1:5
+            subplot(1,5,digit);
+            i = find(handV==hand & digitV==digit & conditionV==condition);
+            caret_plotflatmap('M',M,'col',i,'data',data,'cscale',[-6 12],'border',B.Border,'coord',coord,'topo',topo);
+            set(gca,'XTick',[],'YTick',[]);
+            axis equal; 
+            
+            
+            % Determine the activations and the coordinates
+            dat = data.data(idxROI,i);
+            x = C.data(idxROI,1);
+            y = C.data(idxROI,2);
+            % Now try out different method to determine the
+            
+            for m=1:9
+                [X,Y,k]=df1_imana('SPAT_calcmetric',dat,x,y,m);
+                % Add the symbol
+                hold on;
+                plot(X,Y,symbol{m});
+                hold off;
+            end
         end;
-        
-        varargout = {S};
-        save(fullfile(regDir,['spatial_CoG_splithalf_alt.mat']),'-struct','S');
-        
-    case 'SPAT_reliablity'
-        D = load(fullfile(regDir,'spatial_CoG_splithalf'));
-        D = getrow(D,D.condition==2 & D.region==1 & D.regSide~=D.hand);
-        D1 = getrow(D,D.type==1);
-        D2 = getrow(D,D.type==2);
-        D1.err = sqrt((D1.x - D2.x).^2 + (D1.y - D2.y).^2);
-        
-        D = load(fullfile(regDir,'spatial_CoG_splithalf'));
-        D = getrow(D,D.condition==2 & D.region==1 & D.regSide~=D.hand);
-        D1 = getrow(D,D.type==1);
-        D2 = getrow(D,D.type==2);
-        D1.err = sqrt((D1.x - D2.x).^2 + (D1.y - D2.y).^2);
-        
-        keyboard;
-        
     case 'SPAT_tuningFunctionDistribution'      % shows the distribution of tuning functions within an individuals
         atlas       = 2;
         hemi        = 1;     % 1. left/2. right
@@ -4783,17 +4580,17 @@ switch(what)
         R = load(fullfile(regDir,'reg_distance_raw_splithalf.mat'));
         T=[];
         for s=1:17
-            for r=1:2
+            for r=1:2 
                 for h=1:2
                     for c=1:2
-                        for m=1:6
+                        for m=1:max(D.metric)
                             i1=find(D.sn==s & D.region==r & D.hand==h & D.condition==c & D.metric==m & D.type==1);
                             i2=find(D.sn==s & D.region==r & D.hand==h & D.condition==c & D.metric==m & D.type==2);
                             if (~isempty(i1))
                                 if length(i1)>1
                                     keyboard; % Must be an error
                                 end
-                                TT.sn=s
+                                TT.sn=s;
                                 TT.region = r;
                                 TT.hand = h;
                                 TT.condition = c;
@@ -4812,7 +4609,7 @@ switch(what)
                             TT.region = r;
                             TT.hand = h;
                             TT.condition = c;
-                            TT.metric=7;
+                            TT.metric=10;
                             TT.k = 0;
                             TT.corr=corr(R.dist1(i,:)',R.dist2(i,:)');
                             T=addstruct(T,TT);
@@ -4822,18 +4619,28 @@ switch(what)
             end
         end
         save(fullfile(regDir,'reliability.mat'),'-struct','T');
-    case 'Fig_reliability'
+    case 'Fig_reliability'  % Plot split-half relaibilities
         c=2;
         T=load(fullfile(regDir,'reliability.mat'));
         T.metricType=T.metric;
-        T.metricType(T.metric<6)=2;
-        T.metricType(T.metric==6)=1;
-        T.metricType(T.metric==7)=3;
+        T.metricType(T.metric>1 & T.metric<10)=2;
+        T.metricType(T.metric==10)=3;
         for r=1:2
             subplot(1,2,r);
-            lineplot([T.metricType T.k],T.corr,'subset',T.region==r & ~isnan(T.corr) & T.condition==c,'style_thickline');
+            lineplot([T.metricType T.k],T.corr,'subset',T.region==r+2 & ~isnan(T.corr) & T.condition==c,'style_thickline');
             set(gca,'YLim',[0 1]);
         end;
+         set(gcf,'PaperPosition',[2 2 6 2.3])
+        wysiwyg
+
+    case 'make_distance'
+        df1_imana('SPAT_metrics2d','isplot',0);
+        df1_imana('SPAT_metrics2d_splithalf','isplot',0);
+        df1_imana('SPAT_estimateDistances');
+        df1_imana('SPAT_estimateDistances_splithalf');
+        df1_imana('Calc_reliability');
+        df1_imana('Fig_reliability');
+        
     otherwise
         error('no such case!')
 end
