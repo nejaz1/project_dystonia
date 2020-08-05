@@ -14,7 +14,7 @@ function varargout=df1_imana(what,varargin)
 % baseDir = '/Volumes/External/data/FingerPattern_dystonia';
 % baseDir = '/Volumes/Naveed/data/FingerPattern_dystonia';
 baseDir = '/Volumes/MotorControl/data/FingerPattern_dystonia';
-baseDir = '/srv/diedrichsen/FingerPattern_dystonia';
+% baseDir = '/srv/diedrichsen/FingerPattern_dystonia';
 
 behaviourDir    = fullfile(baseDir, 'Behavioural_data');
 emgDir          = fullfile(baseDir, 'Individuation_EMG/data');
@@ -29,7 +29,7 @@ glmDir= fullfile(baseDir,glmName{1});
 analysisDir     = [baseDir '/analysis'];
 figureDir       = [baseDir '/Individuation_EMG/analysis/figures'];
 statsDir        = [analysisDir '/stats'];
-codeDir         = '~/Matlab/project_dystonia/';
+codeDir         = '~/Matlab/project/project_dystonia/';
 
 colours     = {[0,0,0],[0.6 0.6 1],[0 0 1],[0.6 1 0.6],[0 1 0]};
 sty_grp     = colours([3,5]);
@@ -3206,7 +3206,7 @@ switch(what)
     case 'SPAT_checkSomatotopy'
         condition   = 2;    % sensory
         hand        = 2;    % right hand
-        group       = 1;    % healthy participants
+        group       = [1];    % healthy participants
         reg         = 1;    % S1
         vararginoptions(varargin,{'reg','hand','condition','metric','group'});
         grpLabel    = {'controls','dystonic'};
@@ -3214,17 +3214,17 @@ switch(what)
         % Run Manova on healthy group to check somatotopy for the different
         % softmax values
         D = load(fullfile(regDir,'spatial_CoG.mat'));
-        D = getrow(D,D.group==group & D.condition==condition & ...
+        D = getrow(D,ismember(D.group,group) & D.condition==condition & ...
             D.region==reg & D.hand==hand & D.hand~=D.regSide);
         
-        for m=1:6
+        for m=6
             fprintf('metric=%d\n',m);
             [f1,r]=pivottable([D.sn D.digit],[],D.x,'mean','subset',D.metric==m);
             [f2,r]=pivottable([D.sn D.digit],[],D.y,'mean','subset',D.metric==m);
             Y       = [f1 f2];
             R       = r(:,1);
             F       = r(:,2);
-            MANOVArp(R,F,Y);
+            T=MANOVArp(R,F,Y);
             fprintf('\n\n');
         end;
         
@@ -3239,11 +3239,12 @@ switch(what)
         h = plt.figure;
         [x,y]=xyplot(D.x,D.y,D.digit,'subset',D.metric==4,'split',D.digit,...
             'CAT',CAT,'leg','none');%,'leglocation','southwest','leg','auto');
-        plt.set(h,'ylim',[2 6],'xlim',[3 5]);
-        plt.labels('anterior -> posterior','ventral -> dorsal');
+        % plt.set(h,'ylim',[2 6],'xlim',[3 5]);
+        % plt.labels('anterior -> posterior','ventral -> dorsal');
         
         % saving results
         % save_figure(gcf,fullfile(figureDir,sprintf('%s_%s.pdf',what,grpLabel{group})),'style','brain_1col');
+        varargout={T}; 
     case 'SPAT_estimateDistances'           % estimate distances based on the calculate x-y coordinates
         metric      = 3;    % cog, without negative values
         vararginoptions(varargin,{'hand','condition','metric'});
