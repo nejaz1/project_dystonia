@@ -14,6 +14,7 @@ function varargout=df1_imana(what,varargin)
 % baseDir = '/Volumes/External/data/FingerPattern_dystonia';
 % baseDir = '/Volumes/Naveed/data/FingerPattern_dystonia';
 baseDir = '/Volumes/MotorControl/data/FingerPattern_dystonia';
+baseDir = '/srv/diedrichsen/FingerPattern_dystonia';
 
 behaviourDir    = fullfile(baseDir, 'Behavioural_data');
 emgDir          = fullfile(baseDir, 'Individuation_EMG/data');
@@ -28,7 +29,7 @@ glmDir= fullfile(baseDir,glmName{1});
 analysisDir     = [baseDir '/analysis'];
 figureDir       = [baseDir '/Individuation_EMG/analysis/figures'];
 statsDir        = [analysisDir '/stats'];
-codeDir         = '~/Matlab/project/project_dystonia/';
+codeDir         = '~/Matlab/project_dystonia/';
 
 colours     = {[0,0,0],[0.6 0.6 1],[0 0 1],[0.6 1 0.6],[0 1 0]};
 sty_grp     = colours([3,5]);
@@ -2002,7 +2003,6 @@ switch(what)
         %         regions=[1 2 3 9 10    11 12 13 19 20];
         regions=[1 2 11 12];
         param={};
-        Act = load(fullfile(regDir,'reg_data_8.mat'));
         sn=varargin{1};
         T=[];
         
@@ -2025,13 +2025,6 @@ switch(what)
             
             % Loop over the possile regions
             for r=regions
-                indx=(Act.SN==s & Act.regNum==r);
-                
-                % Get the 200 most activated voxels in each region
-                % By magnitude of activation
-                M=mean(Act.psc(indx,1:2),2)./sqrt(Act.ResMs(indx,:));
-                [~,i]=sort(M,1,'descend');
-                R{r}.data=R{r}.data(i(1:min(200,length(i))),:);
                 
                 % Get the data and prewhiten
                 Y = region_getdata(V,R{r});  % Data is N x P
@@ -2064,7 +2057,6 @@ switch(what)
                 S.region=r*vec;
                 S.hand=[0;1;1];
                 S.stimtype=[0;0;1];
-                S.psc=[mean(Act.psc(indx,1));mean(Act.psc(indx,2));mean(Act.psc(indx,3))];
                 S.group=subj_group(s)*vec;
                 
                 T=addstruct(T,S);
@@ -2878,7 +2870,7 @@ switch(what)
                 X       = sum(w.*x);
                 Y       = sum(w.*y);
             case 9
-                [~,idx] = max(dat);
+                [~,idx] = max(dat); 
                 X       = x(idx);
                 Y       = y(idx);
         end;
@@ -4627,7 +4619,7 @@ switch(what)
         T.metricType(T.metric==10)=3;
         for r=1:2
             subplot(1,2,r);
-            lineplot([T.metricType T.k],T.corr,'subset',T.region==r+2 & ~isnan(T.corr) & T.condition==c,'style_thickline');
+            lineplot([T.metricType T.k],T.corr,'subset',T.region==r & ~isnan(T.corr) & T.condition==c,'style_thickline');
             set(gca,'YLim',[0 1]);
         end;
          set(gcf,'PaperPosition',[2 2 6 2.3])
