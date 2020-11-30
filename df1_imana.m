@@ -13,8 +13,9 @@ function varargout=df1_imana(what,varargin)
 % baseDir = '/Users/naveed/Documents/data/FingerPattern_dystonia';
 % baseDir = '/Volumes/External/data/FingerPattern_dystonia';
 % baseDir = '/Volumes/Naveed/data/FingerPattern_dystonia';
-baseDir = '/Volumes/MotorControl/data/FingerPattern_dystonia';
+%baseDir = '/Volumes/MotorControl/data/FingerPattern_dystonia';
 % baseDir = '/srv/diedrichsen/FingerPattern_dystonia';
+baseDir = '/Volumes/diedrichsen_data$/data/FingerPattern_dystonia';
 
 behaviourDir    = fullfile(baseDir, 'Behavioural_data');
 emgDir          = fullfile(baseDir, 'Individuation_EMG/data');
