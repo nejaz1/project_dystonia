@@ -30,7 +30,7 @@ glmDir= fullfile(baseDir,glmName{1});
 analysisDir     = [baseDir '/analysis'];
 figureDir       = [baseDir '/Individuation_EMG/analysis/figures'];
 statsDir        = [analysisDir '/stats'];
-codeDir         = '~/Matlab/Projects/project_dystonia/';
+codeDir         = '~/Matlab/project/project_dystonia/';
 
 colours     = {[0,0,0],[0.6 0.6 1],[0 0 1],[0.6 1 0.6],[0 1 0]};
 sty_grp     = colours([3,5]);
@@ -2937,17 +2937,14 @@ switch(what)
                         % Determine the activations and the coordinates
                         dat = data.data(idxROI,i);
                         group = floor((i-1)/5); 
-                        datN = dat-mean(data.data(idxROI,group*5+1:group*5+5),2)
+                        datN = dat-mean(data.data(indxROI,group*5+1:group*5+5),2)
                         x = C.data(idxROI,1);
                         y = C.data(idxROI,2);
                         % Now try out different method to determine the
                         % COG:
                         for m=1:10
-                            if (m==10) 
-                                [X,Y,k]=df1_imana('SPAT_calcmetric',datN,x,y,1);
-                            else 
-                                [X,Y,k]=df1_imana('SPAT_calcmetric',dat,x,y,m);
-                            end; 
+                            if (m
+                            [X,Y,k]=df1_imana('SPAT_calcmetric',dat,x,y,m);
                             % Add the symbol
                             if (isplot)
                                 subplot(4,5,i);
@@ -3045,18 +3042,12 @@ switch(what)
                         for i=1:15
                             % Determine the activations and the coordinates
                             dat = data.data(idxROI,i);
-                            group = floor((i-1)/5); 
-                            datN = dat-mean(data.data(idxROI,group*5+1:group*5+5),2);
                             x = C.data(idxROI,1);
                             y = C.data(idxROI,2);
                             % Now try out different method to determine the
                             % COG:
-                            for m=1:10
-                                if (m==10) 
-                                    [X,Y,k]=df1_imana('SPAT_calcmetric',datN,x,y,1);
-                                else 
-                                    [X,Y,k]=df1_imana('SPAT_calcmetric',dat,x,y,m);
-                                end; 
+                            for m=1:9
+                                [X,Y,k]=df1_imana('SPAT_calcmetric',dat,x,y,m);
                                 % Add the symbol
                                 if (isplot)
                                     subplot(4,5,i);
@@ -4366,7 +4357,7 @@ switch(what)
         style.use('groupx3');
         plt.subplot(121); hold on;
         plt.scatter(T.y(:,1),-T.y(:,2),'label',T.label,'regression','none');
-        plt.xy(T.y(:,1),-T.y(:,2),T.cat,'split',T.group,'markersize',5);
+        plt.xy(T.y(:,1),-T.y(:,2),T.cat,'split',T.group);
         
         plt.set(gcf,'ax','equal');
         plt.labels('dim 1','dim 2','MDS','E',121);
@@ -4400,11 +4391,11 @@ switch(what)
         style.use('group');
         plt.subplot(121); hold on;
         plt.scatter(T.y(:,1),-T.y(:,2),'label',T.label,'regression','none','facealpha',1);
-        plt.xy(T.y(:,1),-T.y(:,2),T.cat,'split',T.group,'markersize',5);
+        plt.xy(T.y(:,1),-T.y(:,2),T.cat,'split',T.group);
         
         plt.set(gcf,'ax','equal');
         plt.labels('dim 1','dim 2','MDS','E',121);
-        % plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x2');
+        plt.save(fullfile(figureDir,sprintf('%s.pdf',what)),'1x2');
     case 'Fig_repStructureCerebellumAnterior'          % representational structure across groups
         D = load(fullfile(regDir,'reg_distance_raw.mat'));
         D = rmfield(D,'subj');
@@ -4615,7 +4606,7 @@ switch(what)
                             TT.region = r;
                             TT.hand = h;
                             TT.condition = c;
-                            TT.metric=11;
+                            TT.metric=10;
                             TT.k = 0;
                             TT.corr=corr(R.dist1(i,:)',R.dist2(i,:)');
                             T=addstruct(T,TT);
@@ -4629,9 +4620,8 @@ switch(what)
         c=2;
         T=load(fullfile(regDir,'reliability.mat'));
         T.metricType=T.metric;
-        T.metricType(T.metric>1 & T.metric<10)=3;
-        T.metricType(T.metric==10)=2;
-        T.metricType(T.metric==11)=4;
+        T.metricType(T.metric>1 & T.metric<10)=2;
+        T.metricType(T.metric==10)=3;
         for r=1:2
             subplot(1,2,r);
             lineplot([T.metricType T.k],T.corr,'subset',T.region==r & ~isnan(T.corr) & T.condition==c,'style_thickline');
