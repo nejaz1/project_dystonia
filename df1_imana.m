@@ -4647,6 +4647,27 @@ switch(what)
         df1_imana('SPAT_estimateDistances_splithalf');
         df1_imana('Calc_reliability');
         df1_imana('Fig_reliability');
+    case 'power_analysis'
+        D=load('reg_distance_raw.mat'); 
+        T=getrow(D,D.stimtype==1 & D.regSide==0 & D.regType==1); 
+        mDist = sqrt(mean(T.dist,2));
+        aDist = mean(mDist)*(1-0.29); 
+        
+        ttest(mDist(T.group==1),mDist(T.group==2),2,'independent'); 
+        SE=sqrt(2*std(mDist).^2/8); 
+        expectedT = (mean(mDist)-aDist)/SE;
+        power = tcdf(expectedT - tinv(0.95,15),15); 
+        fprintf('Power for 29 percent reduction: %f  ',power);
+    case 'Bayesian_analysis' 
+        D=load('reg_distance_raw.mat'); 
+        T=getrow(D,D.stimtype==1 & D.regSide==0 & D.regType==1); 
+        mDist = sqrt(mean(T.dist,2));
+        SE=sqrt(2*std(mDist).^2/8); 
+        aDist = mean(mDist(T.group==1))*(1-0.29);
+        expEff = (mean(mDist(T.group==1)-aDist))/SE; 
+        trueEff = (mean(mDist(T.group==1))-mean(mDist(T.group==2)))/SE; 
+        BayesFact = tpdf(-trueEff,15)/tpdf(expEff-trueEff,15); 
+        fprintf('bayes factor against a 29 percent reduction: %f  ',BayesFact);        
         
     otherwise
         error('no such case!')
